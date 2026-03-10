@@ -1,0 +1,65 @@
+services:
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+      - "29092:29092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+
+  weak-app:
+    build:
+      context: ./WeakApp
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  data-ingestor:
+    build:
+      context: ./DataIngestor
+      dockerfile: Dockerfile
+    depends_on:
+      - kafka
+      - weak-app
+    # Load sensitive values (API keys, broker addresses, etc.) from a service-local .env file.
+    # Use a path relative to the compose file so docker-compose will load the DataIngestor/.env file.
+    env_file:
+      - .env
+    environment:
+      # Non-sensitive defaults — sensitive values (WEAKAPP_API_KEY, KAFKA_BROKERS) should be provided in .env
+      WEAKAPP_URL: ${WEAKAPP_URL:-http://weak-app:8080}
+      WEAKAPP_API_KEY: ${WEAKAPP_API_KEY}
+
+      KAFKA_TOPIC: ${KAFKA_TOPIC:-meter-data}
+      POLL_INTERVAL: ${POLL_INTERVAL:-5m}
+    restart: unless-stopped
+
+  # data-processor:
+
+  # graphql-api-gateway:
+
+  # notification:
+
+  # frontend:
