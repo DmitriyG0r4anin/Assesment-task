@@ -54,29 +54,23 @@ func (d *DataIngestor) fetchDataFromWeakApp(ctx context.Context) ([]byte, error)
 	var lastErr error
 	backoff := d.Config.InitialBackoff
 
-	for attempt := 0; attempt <= d.Config.MaxRetries; attempt++ {
-		if attempt > 0 {
-			log.Printf("Retry attempt %d/%d after %v", attempt, d.Config.MaxRetries, backoff)
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case <-time.After(backoff):
+	}
 
-			select {
-			case <-ctx.Done():
-				return nil, ctx.Err()
-			case <-time.After(backoff):
-			}
+	// Exponential backoff with cap
+	backoff = min(backoff*2, d.Config.MaxBackoff)
 
-			// Exponential backoff with cap
-			backoff = min(backoff*2, d.Config.MaxBackoff)
-		}
+	data, err, shouldRetry := d.doRequest(ctx)
+	if err == nil {
+		return data, nil
+	}
 
-		data, err, shouldRetry := d.doRequest(ctx)
-		if err == nil {
-			return data, nil
-		}
-
-		lastErr = err
-		if !shouldRetry {
-			return nil, err
-		}
+	lastErr = err
+	if !shouldRetry {
+		return nil, err
 	}
 
 	return nil, fmt.Errorf("max retries exceeded: %w", lastErr)
@@ -239,7 +233,7 @@ func (d *DataIngestor) poll(ctx context.Context) {
 
 func (d *DataIngestor) handleItem(item models.ResponseItem) {
 	// local helper to marshal an outgoing message and publish to Kafka
-	publish := func(typ, name string, payload interface{}) {
+	publish := func(typ, name string, payload any) {
 		out := models.OutgoingMessage{
 			Type:      typ,
 			Name:      name,
