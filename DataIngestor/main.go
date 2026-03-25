@@ -5,12 +5,13 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
 
+	"github.com/dataingestor/config"
 	"github.com/dataingestor/ingestor"
-	"github.com/dataingestor/models"
 )
 
 func loadDotEnv(path string) {
@@ -62,10 +63,24 @@ func main() {
 	log.SetFlags(log.LstdFlags | log.Lmicroseconds)
 	log.Println("DataIngestor starting (thin main)...")
 
-	weakAppURL := getEnv("WEAKAPP_URL", "http://weak-app:8080")
-	weakAppAPIKey := getEnv("WEAKAPP_API_KEY", "")
-	kafkaBrokersEnv := getEnv("KAFKA_BROKERS", "")
-	kafkaTopic := getEnv("KAFKA_TOPIC", "meter-data")
+	weakAppURL := getEnv(config.EnvWeakAppURL, "http://weak-app:8080")
+
+	weakAppAPIKey := getEnv(config.EnvWeakAppAPIKey, "")
+	if weakAppAPIKey == "" {
+		log.Fatal("WEAKAPP_API_KEY is not set. Provide it via environment or a .env file.")
+	}
+
+	kafkaBrokersEnv := getEnv(config.EnvKafkaBrokers, "")
+	kafkaTopic := getEnv(config.EnvKafkaTopic, "meter-data")
+	pollInterval := getEnvDuration(config.EnvPollInterval, 5*time.Minute)
+	initialBackoff := getEnvDuration(config.EnvInitialBackoff, 1*time.Minute)
+	maxBackoff := getEnvDuration(config.EnvMaxBackoff, 30*time.Second)
+	requestTimeout := getEnvDuration(config.EnvRequestTimeout, 5*time.Minute)
+
+	maxRetries, err :=  strconv.Atoi(getEnv(config.EnvMaxRetries, "5"))
+	if err != nil {
+		log.Fatal("MAX_RETRIES is not a number. Provide an integer value for this parameter")
+	}
 
 	kafkaBrokers := []string{}
 	if kafkaBrokersEnv != "" {
@@ -76,23 +91,20 @@ func main() {
 		}
 	}
 
-	if weakAppAPIKey == "" {
-		log.Fatal("WEAKAPP_API_KEY is not set. Provide it via environment or a .env file.")
-	}
 	if len(kafkaBrokers) == 0 {
 		log.Fatal("KAFKA_BROKERS is not set or empty. Provide comma-separated brokers via environment or a .env file.")
 	}
 
-	cfg := models.Config{
+	cfg := config.Config{
 		WeakAppURL:     weakAppURL,
 		WeakAppAPIKey:  weakAppAPIKey,
 		KafkaBrokers:   kafkaBrokers,
 		KafkaTopic:     kafkaTopic,
-		PollInterval:   getEnvDuration("POLL_INTERVAL", 5*time.Minute),
-		MaxRetries:     5,
-		InitialBackoff: 1 * time.Second,
-		MaxBackoff:     30 * time.Second,
-		RequestTimeout: 30 * time.Second,
+		PollInterval:   pollInterval,
+		MaxRetries:     maxRetries,
+		InitialBackoff: initialBackoff,
+		MaxBackoff:     maxBackoff,
+		RequestTimeout: requestTimeout,
 	}
 
 	ing, err := ingestor.NewDataIngestor(cfg)

@@ -1,7 +1,19 @@
-package models
+package config
 
 import (
 	"time"
+)
+
+const (
+	EnvWeakAppURL      = "WEAKAPP_URL"
+	EnvKafkaBrokers    = "KAFKA_BROKERS"
+	EnvKafkaTopic      = "KAFKA_TOPIC"
+	EnvPollInterval    = "POLL_INTERVAL"
+	EnvInitialBackoff  = "INITIAL_BACKOFF"
+	EnvMaxBackoff      = "MAX_BACKOFF"
+	EnvRequestTimeout  = "REQUEST_TIMEOUT"
+	EnvMaxRetries      = "MAX_RETRIES"
+	EnvWeakAppAPIKey   = "WEAKAPP_API_KEY"
 )
 
 type Config struct {

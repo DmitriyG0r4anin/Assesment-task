@@ -11,16 +11,17 @@ import (
 	"time"
 
 	"github.com/IBM/sarama"
+	"github.com/dataingestor/config"
 	"github.com/dataingestor/models"
 )
 
 type DataIngestor struct {
-	Config   models.Config
+	Config   config.Config
 	Client   *http.Client
 	Producer sarama.SyncProducer
 }
 
-func NewDataIngestor(config models.Config) (*DataIngestor, error) {
+func NewDataIngestor(config config.Config) (*DataIngestor, error) {
 	client := &http.Client{
 		Timeout: config.RequestTimeout,
 	}
@@ -30,15 +31,15 @@ func NewDataIngestor(config models.Config) (*DataIngestor, error) {
 	kafkaConfig.Producer.Retry.Max = 5
 	kafkaConfig.Producer.Return.Successes = true
 
-	//producer, err := sarama.NewSyncProducer(config.KafkaBrokers, kafkaConfig)
-	// if err != nil {
-	// 	return nil, fmt.Errorf("failed to create Kafka producer: %w", err)
-	// }
+	producer, err := sarama.NewSyncProducer(config.KafkaBrokers, kafkaConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create Kafka producer: %w", err)
+	}
 
 	return &DataIngestor{
 		Config:   config,
 		Client:   client,
-		Producer: nil,
+		Producer: producer,
 	}, nil
 }
 
@@ -150,15 +151,6 @@ func (d *DataIngestor) doRequest(ctx context.Context) ([]byte, error, bool) {
 	}
 }
 
-// Checks responses for common invalid cases:
-//
-// - empty body or literal empty-array ("[]")
-//
-// - literal "null"
-//
-// - malformed JSON
-//
-// - JSON object containing an "error" field
 func validateResponse(body []byte) ([]byte, error, bool) {
 	if len(body) == 0 {
 		return nil, fmt.Errorf("empty response body"), true
