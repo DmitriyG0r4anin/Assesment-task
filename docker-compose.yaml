@@ -66,3 +66,19 @@ services:
   # notification:
 
   # frontend:
+
+  # A lightweight web UI for inspecting Kafka topics, partitions and messages.
+  # Uses Kafdrop and connects directly to the Kafka broker exposed above.
+  control-center:
+    image: obsidiandynamics/kafdrop:3.27.0
+    container_name: control-center
+    ports:
+      - "9000:9000"
+    environment:
+      # Connect to the Kafka broker (use the broker's internal Docker network address)
+      KAFKA_BROKERCONNECT: "broker:29092"
+      # Limit heap size for the container (tweak as needed)
+      JVM_OPTS: "-Xms64M -Xmx512M"
+    depends_on:
+      - broker
+    restart: unless-stopped

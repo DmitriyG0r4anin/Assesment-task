@@ -5,7 +5,6 @@ import (
 	"log"
 	"os"
 	"os/signal"
-	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -77,11 +76,6 @@ func main() {
 	maxBackoff := getEnvDuration(config.EnvMaxBackoff, 30*time.Second)
 	requestTimeout := getEnvDuration(config.EnvRequestTimeout, 5*time.Minute)
 
-	maxRetries, err :=  strconv.Atoi(getEnv(config.EnvMaxRetries, "5"))
-	if err != nil {
-		log.Fatal("MAX_RETRIES is not a number. Provide an integer value for this parameter")
-	}
-
 	kafkaBrokers := []string{}
 	if kafkaBrokersEnv != "" {
 		for b := range strings.SplitSeq(kafkaBrokersEnv, ",") {
@@ -101,7 +95,6 @@ func main() {
 		KafkaBrokers:   kafkaBrokers,
 		KafkaTopic:     kafkaTopic,
 		PollInterval:   pollInterval,
-		MaxRetries:     maxRetries,
 		InitialBackoff: initialBackoff,
 		MaxBackoff:     maxBackoff,
 		RequestTimeout: requestTimeout,
