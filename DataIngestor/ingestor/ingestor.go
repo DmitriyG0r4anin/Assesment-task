@@ -15,10 +15,16 @@ import (
 	"github.com/dataingestor/models"
 )
 
+type Producer interface {
+	SendMessage(msg *sarama.ProducerMessage) (partition int32, offset int64, err error)
+	SendMessages(msgs []*sarama.ProducerMessage) error
+	Close() error
+}
+
 type DataIngestor struct {
 	Config   config.Config
 	Client   *http.Client
-	Producer sarama.SyncProducer
+	Producer Producer
 }
 
 func NewDataIngestor(config config.Config) (*DataIngestor, error) {
@@ -48,6 +54,13 @@ func (d *DataIngestor) Close() error {
 		return d.Producer.Close()
 	}
 	return nil
+}
+
+func min(a, b time.Duration) time.Duration {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 func (d *DataIngestor) fetchDataFromWeakApp(ctx context.Context) ([]byte, error) {
