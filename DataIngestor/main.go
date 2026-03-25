@@ -18,8 +18,8 @@ func loadDotEnv(path string) {
 	if err != nil {
 		return
 	}
-	lines := strings.SplitSeq(string(data), "\n")
-	for line := range lines {
+	lines := strings.Split(string(data), "\n")
+	for _, line := range lines {
 		line = strings.TrimSpace(line)
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue
@@ -78,7 +78,7 @@ func main() {
 
 	kafkaBrokers := []string{}
 	if kafkaBrokersEnv != "" {
-		for b := range strings.SplitSeq(kafkaBrokersEnv, ",") {
+		for _, b := range strings.Split(kafkaBrokersEnv, ",") {
 			if s := strings.TrimSpace(b); s != "" {
 				kafkaBrokers = append(kafkaBrokers, s)
 			}
@@ -111,14 +111,8 @@ func main() {
 		}
 	}()
 
-	ctx, cancel := context.WithCancel(context.Background())
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
-	go func() {
-		sig := <-sigChan
-		log.Printf("received signal %v, shutting down...", sig)
-		cancel()
-	}()
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
 
 	if err := ing.Run(ctx); err != nil && err != context.Canceled {
 		log.Fatalf("DataIngestor.Run returned error: %v", err)

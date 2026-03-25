@@ -5,14 +5,14 @@ import (
 )
 
 const (
-	EnvWeakAppURL      = "WEAKAPP_URL"
-	EnvKafkaBrokers    = "KAFKA_BROKERS"
-	EnvKafkaTopic      = "KAFKA_TOPIC"
-	EnvPollInterval    = "POLL_INTERVAL"
-	EnvInitialBackoff  = "INITIAL_BACKOFF"
-	EnvMaxBackoff      = "MAX_BACKOFF"
-	EnvRequestTimeout  = "REQUEST_TIMEOUT"
-	EnvWeakAppAPIKey   = "WEAKAPP_API_KEY"
+	EnvWeakAppURL     = "WEAKAPP_URL"
+	EnvKafkaBrokers   = "KAFKA_BROKERS"
+	EnvKafkaTopic     = "KAFKA_TOPIC"
+	EnvPollInterval   = "POLL_INTERVAL"
+	EnvInitialBackoff = "INITIAL_BACKOFF"
+	EnvMaxBackoff     = "MAX_BACKOFF"
+	EnvRequestTimeout = "REQUEST_TIMEOUT"
+	EnvWeakAppAPIKey  = "WEAKAPP_API_KEY"
 )
 
 type Config struct {

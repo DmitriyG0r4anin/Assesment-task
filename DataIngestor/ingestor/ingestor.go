@@ -53,7 +53,7 @@ func (d *DataIngestor) Close() error {
 func (d *DataIngestor) fetchDataFromWeakApp(ctx context.Context) ([]byte, error) {
 	backoff := d.Config.InitialBackoff
 
-	for attempt := 0; ;attempt++ {
+	for attempt := 0; ; attempt++ {
 		if attempt > 0 {
 			log.Printf("Retry attempt %d/ after %v", attempt, backoff)
 
@@ -94,9 +94,15 @@ func (d *DataIngestor) doRequest(ctx context.Context) ([]byte, error, bool) {
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	// Protect against extremely large responses from upstream to avoid OOM.
+	const maxResponseBytes = 5 * 1024 * 1024 // 5 MB
+	lr := io.LimitReader(resp.Body, maxResponseBytes+1)
+	body, err := io.ReadAll(lr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response body: %w", err), true
+	}
+	if int64(len(body)) > maxResponseBytes {
+		return nil, fmt.Errorf("response too large (> %d bytes)", maxResponseBytes), true
 	}
 
 	switch resp.StatusCode {
