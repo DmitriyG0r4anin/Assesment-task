@@ -56,13 +56,6 @@ func (d *DataIngestor) Close() error {
 	return nil
 }
 
-func min(a, b time.Duration) time.Duration {
-	if a < b {
-		return a
-	}
-	return b
-}
-
 func (d *DataIngestor) fetchDataFromWeakApp(ctx context.Context) ([]byte, error) {
 	backoff := d.Config.InitialBackoff
 

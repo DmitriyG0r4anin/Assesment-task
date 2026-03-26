@@ -3,10 +3,12 @@ package ingestor
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/IBM/sarama"
 	"github.com/dataingestor/config"
@@ -315,4 +317,550 @@ func TestHandleItem_PublishesExpectedMessages(t *testing.T) {
 	}
 	d.handleItem(item4)
 	mustEqual(t, "unsupported send count", 0, fp.sendCount)
+}
+
+// Test that sendToKafka returns an error when the producer fails.
+func TestSendToKafka_Failure(t *testing.T) {
+	fp := &fakeProducer{fail: true}
+	d := &DataIngestor{
+		Config:   config.Config{KafkaTopic: "topic-x"},
+		Producer: fp,
+	}
+
+	err := d.sendToKafka([]byte(`{"x":1}`))
+	if err == nil {
+		t.Fatalf("expected error from sendToKafka when producer fails, got nil")
+	}
+}
+
+// Test fetchDataFromWeakApp will retry on transient server error and succeed when the server recovers.
+func TestFetchDataFromWeakApp_RetryThenSuccess(t *testing.T) {
+	callCount := 0
+	mux := http.NewServeMux()
+	mux.HandleFunc("/meters", func(w http.ResponseWriter, r *http.Request) {
+		callCount++
+		if callCount == 1 {
+			http.Error(w, "server error", http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`[{"type":"motion","name":"m1","payload":{"motionDetected":true}}]`))
+	})
+
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	d := &DataIngestor{
+		Config: config.Config{
+			WeakAppURL:     srv.URL,
+			WeakAppAPIKey:  "key",
+			InitialBackoff: 1 * time.Millisecond,
+			MaxBackoff:     2 * time.Millisecond,
+		},
+		Client:   srv.Client(),
+		Producer: &fakeProducer{},
+	}
+
+	data, err := d.fetchDataFromWeakApp(context.Background())
+	if err != nil {
+		t.Fatalf("expected success after retry, got error: %v", err)
+	}
+	var items []map[string]any
+	if err := json.Unmarshal(data, &items); err != nil {
+		t.Fatalf("failed to unmarshal returned data: %v", err)
+	}
+	if len(items) != 1 {
+		t.Fatalf("expected 1 item after success, got %d", len(items))
+	}
+	if callCount < 2 {
+		t.Fatalf("expected at least one retry (callCount>=2), got %d", callCount)
+	}
+}
+
+// Test that fetchDataFromWeakApp returns context.Canceled when the provided context is canceled.
+func TestFetchDataFromWeakApp_ContextCanceled(t *testing.T) {
+	// Server that would respond slowly to ensure context cancellation happens.
+	mux := http.NewServeMux()
+	mux.HandleFunc("/meters", func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(50 * time.Millisecond)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`[{"type":"motion","name":"m1","payload":{"motionDetected":true}}]`))
+	})
+
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	d := &DataIngestor{
+		Config: config.Config{
+			WeakAppURL:     srv.URL,
+			WeakAppAPIKey:  "key",
+			InitialBackoff: 1 * time.Millisecond,
+			MaxBackoff:     2 * time.Millisecond,
+		},
+		Client:   srv.Client(),
+		Producer: &fakeProducer{},
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	// Cancel immediately so the request context is already canceled when used.
+	cancel()
+
+	_, err := d.fetchDataFromWeakApp(ctx)
+	if err == nil {
+		t.Fatalf("expected error when context is canceled, got nil")
+	}
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected context.Canceled, got: %v", err)
+	}
+}
+
+// Test poll processes items returned from the WeakApp and publishes to Kafka.
+func TestPoll_ProcessesItems(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/meters", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		// return three different types to ensure handleItem covers each branch
+		_, _ = w.Write([]byte(`[
+			{"type":"air_quality","name":"aq1","payload":{"co2":100,"pm25":10,"humidity":40}},
+			{"type":"motion","name":"m2","payload":{"motionDetected":false}},
+			{"type":"energy","name":"e1","payload":{"energy":7.5}}
+		]`))
+	})
+
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	fp := &fakeProducer{}
+	d := &DataIngestor{
+		Config: config.Config{
+			WeakAppURL:     srv.URL,
+			WeakAppAPIKey:  "key",
+			InitialBackoff: 1 * time.Millisecond,
+			MaxBackoff:     2 * time.Millisecond,
+		},
+		Client:   srv.Client(),
+		Producer: fp,
+	}
+
+	// Call poll directly; it should fetch, unmarshal, and call handleItem for each entry.
+	d.poll(context.Background())
+
+	// Expect three messages sent (one per supported type)
+	mustEqual(t, "sent messages", 3, fp.sendCount)
+}
+
+// Additional tests to cover NewDataIngestor, Close, Run, and handleItem error branches
+
+func TestNewDataIngestor_NoBrokers_ReturnsError(t *testing.T) {
+	// Provide no Kafka brokers so creating a real producer should fail.
+	cfg := config.Config{
+		KafkaBrokers: nil,
+	}
+	_, err := NewDataIngestor(cfg)
+	if err == nil {
+		t.Fatalf("expected error when creating NewDataIngestor with no brokers, got nil")
+	}
+}
+
+func TestClose_WithAndWithoutProducer(t *testing.T) {
+	d := &DataIngestor{}
+	// nil producer should return nil error
+	if err := d.Close(); err != nil {
+		t.Fatalf("expected nil error when producer is nil, got %v", err)
+	}
+
+	// with fake producer
+	fp := &fakeProducer{}
+	d.Producer = fp
+	if err := d.Close(); err != nil {
+		t.Fatalf("expected nil error when closing fake producer, got %v", err)
+	}
+}
+
+func TestRun_StopsOnContextCancel(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/meters", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`[{\"type\":\"motion\",\"name\":\"m1\",\"payload\":{\"motionDetected\":true}}]`))
+	})
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	fp := &fakeProducer{}
+	d := &DataIngestor{
+		Config: config.Config{
+			WeakAppURL:    srv.URL,
+			WeakAppAPIKey: "k",
+			KafkaTopic:    "topic-run",
+			PollInterval:  10 * time.Millisecond,
+		},
+		Client:   srv.Client(),
+		Producer: fp,
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- d.Run(ctx)
+	}()
+
+	// wait for run to finish
+	err := <-errCh
+	if err == nil {
+		t.Fatalf("expected error (context.Done) from Run, got nil")
+	}
+	if !errors.Is(err, context.DeadlineExceeded) && !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected context error from Run, got: %v", err)
+	}
+}
+
+func TestHandleItem_UnmarshalErrorsAndPublishFailure(t *testing.T) {
+	fp := &fakeProducer{fail: true}
+	d := &DataIngestor{
+		Config:   config.Config{KafkaTopic: "topic-x"},
+		Producer: fp,
+	}
+
+	// invalid air_quality payload
+	item := models.ResponseItem{Type: "air_quality", Name: "a1", Payload: json.RawMessage(`invalid`)}
+	d.handleItem(item)
+	// invalid payload should not increment sendCount
+	mustEqual(t, "sendCount after invalid payload", 0, fp.sendCount)
+
+	// valid payload but producer fails when sending; fakeProducer increments sendCount before returning error
+	validAQ := models.AirQualityPayload{CO2: 1, PM25: 2, Humidity: 3}
+	b, _ := json.Marshal(validAQ)
+	item2 := models.ResponseItem{Type: "air_quality", Name: "a2", Payload: json.RawMessage(b)}
+	d.handleItem(item2)
+	// although the producer fails, fakeProducer increments sendCount
+	mustEqual(t, "sendCount after publish failure", 1, fp.sendCount)
+}
+
+// Test various HTTP status codes returned by the WeakApp and assert retry semantics.
+func TestDoRequest_StatusCodes(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/meters", func(w http.ResponseWriter, r *http.Request) {
+		key := r.Header.Get("X-Api-Key")
+		switch key {
+		case "401":
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+		case "403":
+			http.Error(w, "forbidden", http.StatusForbidden)
+		case "404":
+			http.Error(w, "notfound", http.StatusNotFound)
+		case "429":
+			http.Error(w, "rate", http.StatusTooManyRequests)
+		default:
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`[{"type":"motion","name":"m1","payload":{"motionDetected":true}}]`))
+		}
+	})
+
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	makeIngestor := func(apiKey string) *DataIngestor {
+		return &DataIngestor{
+			Config: config.Config{
+				WeakAppURL:    srv.URL,
+				WeakAppAPIKey: apiKey,
+			},
+			Client:   srv.Client(),
+			Producer: &fakeProducer{},
+		}
+	}
+
+	// 401: should not retry
+	d401 := makeIngestor("401")
+	_, err401, retry401 := d401.doRequest(context.Background())
+	if err401 == nil {
+		t.Fatalf("expected error for 401")
+	}
+	mustEqual(t, "401 retry", false, retry401)
+
+	// 403: should not retry
+	d403 := makeIngestor("403")
+	_, err403, retry403 := d403.doRequest(context.Background())
+	if err403 == nil {
+		t.Fatalf("expected error for 403")
+	}
+	mustEqual(t, "403 retry", false, retry403)
+
+	// 404: should retry (transient)
+	d404 := makeIngestor("404")
+	_, err404, retry404 := d404.doRequest(context.Background())
+	if err404 == nil {
+		t.Fatalf("expected error for 404")
+	}
+	mustEqual(t, "404 retry", true, retry404)
+
+	// 429: should retry (rate limited)
+	d429 := makeIngestor("429")
+	_, err429, retry429 := d429.doRequest(context.Background())
+	if err429 == nil {
+		t.Fatalf("expected error for 429")
+	}
+	mustEqual(t, "429 retry", true, retry429)
+
+	// success path for sanity
+	dok := makeIngestor("ok")
+	data, errok, retryok := dok.doRequest(context.Background())
+	if errok != nil {
+		t.Fatalf("unexpected error for ok: %v", errok)
+	}
+	mustEqual(t, "ok retry", false, retryok)
+	var items []models.ResponseItem
+	if err := json.Unmarshal(data, &items); err != nil {
+		t.Fatalf("failed to unmarshal ok payload: %v", err)
+	}
+	if len(items) != 1 {
+		t.Fatalf("expected 1 item on success, got %d", len(items))
+	}
+}
+
+// Transport that always returns a client-side error to simulate network failures.
+type errTransport struct{}
+
+func (e *errTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	return nil, fmt.Errorf("simulated network error")
+}
+
+// Test that client.Do returning an error yields a retryable error from doRequest.
+func TestDoRequest_ClientError(t *testing.T) {
+	d := &DataIngestor{
+		Config: config.Config{
+			WeakAppURL:    "http://example.invalid",
+			WeakAppAPIKey: "k",
+		},
+		Client:   &http.Client{Transport: &errTransport{}},
+		Producer: &fakeProducer{},
+	}
+
+	_, err, retry := d.doRequest(context.Background())
+	if err == nil {
+		t.Fatalf("expected client error from doRequest when transport fails")
+	}
+	mustEqual(t, "client error retry", true, retry)
+}
+
+// Reader that always fails to simulate ReadAll error.
+type readErrRC struct{}
+
+func (r readErrRC) Read(p []byte) (int, error) { return 0, fmt.Errorf("simulated read error") }
+func (r readErrRC) Close() error               { return nil }
+
+type readErrTransport struct{}
+
+func (r *readErrTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	return &http.Response{
+		StatusCode: http.StatusOK,
+		Body:       readErrRC{},
+		Header:     http.Header{"Content-Type": []string{"application/json"}},
+		Request:    req,
+	}, nil
+}
+
+// Test that an error while reading the response body causes doRequest to return a retryable error.
+func TestDoRequest_ReadAllError(t *testing.T) {
+	d := &DataIngestor{
+		Config: config.Config{
+			WeakAppURL:    "http://example.invalid",
+			WeakAppAPIKey: "k",
+		},
+		Client:   &http.Client{Transport: &readErrTransport{}},
+		Producer: &fakeProducer{},
+	}
+
+	_, err, retry := d.doRequest(context.Background())
+	if err == nil {
+		t.Fatalf("expected read error from doRequest when reading body fails")
+	}
+	mustEqual(t, "read error retry", true, retry)
+}
+
+// Bad body reader that returns an error on Read
+type badBody struct{}
+
+func (b *badBody) Read(p []byte) (int, error) { return 0, fmt.Errorf("read error") }
+func (b *badBody) Close() error               { return nil }
+
+type roundTripperFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripperFunc) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
+
+func TestDoRequest_ReadBodyError(t *testing.T) {
+	d := &DataIngestor{
+		Config: config.Config{
+			WeakAppURL:    "http://example.invalid",
+			WeakAppAPIKey: "k",
+		},
+		Client: &http.Client{Transport: roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       &badBody{},
+				Header:     make(http.Header),
+			}, nil
+		})},
+		Producer: &fakeProducer{},
+	}
+
+	_, err, retry := d.doRequest(context.Background())
+	if err == nil {
+		t.Fatalf("expected error when body Read fails")
+	}
+	mustEqual(t, "read error retry", true, retry)
+}
+
+func TestDoRequest_WhitespaceBody(t *testing.T) {
+	h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte("   \n\t "))
+	})
+	srv := httptest.NewServer(h)
+	defer srv.Close()
+
+	d := &DataIngestor{
+		Config: config.Config{
+			WeakAppURL:    srv.URL,
+			WeakAppAPIKey: "k",
+		},
+		Client:   srv.Client(),
+		Producer: &fakeProducer{},
+	}
+
+	_, err, retry := d.doRequest(context.Background())
+	if err == nil {
+		t.Fatalf("expected validation error for whitespace body")
+	}
+	mustEqual(t, "whitespace retry", true, retry)
+}
+
+// New tests to increase coverage: unsupported type and poll unmarshal error
+func TestHandleItem_UnsupportedType_NoSend(t *testing.T) {
+	fp := &fakeProducer{}
+	d := &DataIngestor{
+		Config:   config.Config{KafkaTopic: "topic-x"},
+		Producer: fp,
+	}
+
+	item := models.ResponseItem{Type: "unsupported_type", Name: "u1", Payload: json.RawMessage(`{"x":1}`)}
+	d.handleItem(item)
+	mustEqual(t, "unsupported send count", 0, fp.sendCount)
+}
+
+func TestPoll_UnmarshalError(t *testing.T) {
+	h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		// invalid JSON to trigger unmarshal error in poll
+		_, _ = w.Write([]byte("{invalid"))
+	})
+	srv := httptest.NewServer(h)
+	defer srv.Close()
+
+	fp := &fakeProducer{}
+	d := &DataIngestor{
+		Config: config.Config{
+			WeakAppURL:     srv.URL,
+			WeakAppAPIKey:  "k",
+			KafkaTopic:     "topic-x",
+			InitialBackoff: 1 * time.Millisecond, // small backoff so retry loop advances quickly
+			MaxBackoff:     5 * time.Millisecond,
+		},
+		Client:   srv.Client(),
+		Producer: fp,
+	}
+
+	// Provide a cancellable / timeout context so poll doesn't block retrying forever.
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+
+	// Should return when context expires and should not send any messages.
+	d.poll(ctx)
+	mustEqual(t, "sendCount after unmarshal error", 0, fp.sendCount)
+}
+
+// New test: server responds with a payload larger than allowed maxResponseBytes (5 MB),
+// ensuring the doRequest path for "response too large" is exercised.
+func TestDoRequest_ResponseTooLarge(t *testing.T) {
+	h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		// produce 6 MB payload to exceed the 5 MB limit in doRequest
+		b := make([]byte, 6*1024*1024)
+		for i := range b {
+			b[i] = 'x'
+		}
+		_, _ = w.Write(b)
+	})
+
+	srv := httptest.NewServer(h)
+	defer srv.Close()
+
+	d := &DataIngestor{
+		Config: config.Config{
+			WeakAppURL:    srv.URL,
+			WeakAppAPIKey: "k",
+		},
+		Client:   srv.Client(),
+		Producer: &fakeProducer{},
+	}
+
+	_, err, retry := d.doRequest(context.Background())
+	if err == nil {
+		t.Fatalf("expected error for too large response")
+	}
+	mustEqual(t, "too large retry", true, retry)
+}
+
+// New test: 400 Bad Request should return an error and retry=false
+func TestDoRequest_BadRequest400(t *testing.T) {
+	h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "bad request", http.StatusBadRequest)
+	})
+	srv := httptest.NewServer(h)
+	defer srv.Close()
+
+	d := &DataIngestor{
+		Config: config.Config{
+			WeakAppURL:    srv.URL,
+			WeakAppAPIKey: "k",
+		},
+		Client:   srv.Client(),
+		Producer: &fakeProducer{},
+	}
+
+	_, err, retry := d.doRequest(context.Background())
+	if err == nil {
+		t.Fatalf("expected error for 400 Bad Request")
+	}
+	mustEqual(t, "400 retry", false, retry)
+}
+
+// New test: unexpected redirect (3xx) should be treated as unexpected error and be retryable
+func TestDoRequest_RedirectStatus(t *testing.T) {
+	h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// return 302 Found (redirect)
+		w.Header().Set("Location", "/other")
+		w.WriteHeader(http.StatusFound)
+	})
+	srv := httptest.NewServer(h)
+	defer srv.Close()
+
+	d := &DataIngestor{
+		Config: config.Config{
+			WeakAppURL:    srv.URL,
+			WeakAppAPIKey: "k",
+		},
+		Client:   srv.Client(),
+		Producer: &fakeProducer{},
+	}
+
+	_, err, retry := d.doRequest(context.Background())
+	if err == nil {
+		t.Fatalf("expected error for redirect status")
+	}
+	// redirect (3xx) is not a 4xx client error or 5xx server error in the switch,
+	// it falls through to unexpected -> treated as retryable
+	mustEqual(t, "redirect retry", true, retry)
 }

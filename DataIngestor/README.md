@@ -43,8 +43,6 @@ The application handles SIGINT and SIGTERM signals for clean shutdown, ensuring:
 
 The application is configured via environment variables and an optional `.env` file for sensitive values.
 
-Use the included `.env.example` as a template. Copy it to `.env` and fill in sensitive values (do not commit `.env` to version control).
-
 | Variable | Description | Default / Notes |
 | `WEAKAPP_URL` | Base URL of WeakApp API | `http://weak-app:8080` |
 | `WEAKAPP_API_KEY` | API key for WeakApp authentication | SENSITIVE — provide via `.env` or environment |
@@ -77,8 +75,6 @@ docker-compose up data-ingestor
 ```
 
 ### Standalone (for development)
-
-For local development you can use the `.env.example` to create a `.env` file and load it. DO NOT commit your real `.env` with secrets.
 
 ```bash
 # copy the example and edit the values (set WEAKAPP_API_KEY, KAFKA_BROKERS, etc.)
