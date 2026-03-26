@@ -15,7 +15,7 @@ import (
 	"github.com/dataingestor/models"
 )
 
-// fakeProducer is a minimal fake implementing sarama.SyncProducer for tests.
+// minimal fake implementing sarama.SyncProducer for tests.
 type fakeProducer struct {
 	lastTopic string
 	lastValue []byte
@@ -27,12 +27,10 @@ func (p *fakeProducer) SendMessage(msg *sarama.ProducerMessage) (partition int32
 	if msg == nil {
 		return 0, 0, fmt.Errorf("nil message")
 	}
-	// Extract bytes from sarama.ByteEncoder if present.
 	if msg.Value != nil {
 		if be, ok := msg.Value.(sarama.ByteEncoder); ok {
 			p.lastValue = []byte(be)
 		} else {
-			// Unsupported encoder type in tests — record nil to indicate no payload captured.
 			p.lastValue = nil
 		}
 	} else {
@@ -51,7 +49,7 @@ func (p *fakeProducer) SendMessages(msgs []*sarama.ProducerMessage) error {
 	if len(msgs) == 0 {
 		return nil
 	}
-	// capture the last message for assertions
+
 	last := msgs[len(msgs)-1]
 	if last != nil && last.Value != nil {
 		if be, ok := last.Value.(sarama.ByteEncoder); ok {
@@ -112,7 +110,6 @@ func TestValidateResponse(t *testing.T) {
 }
 
 func TestDoRequest_OK_and_Failures(t *testing.T) {
-	// Handler that checks the X-Api-Key and returns different statuses based on key.
 	handler := http.NewServeMux()
 	handler.HandleFunc("/meters", func(w http.ResponseWriter, r *http.Request) {
 		key := r.Header.Get("X-Api-Key")
@@ -136,13 +133,11 @@ func TestDoRequest_OK_and_Failures(t *testing.T) {
 	srv := httptest.NewServer(handler)
 	defer srv.Close()
 
-	// Helper to build a DataIngestor configured against the test server.
 	makeIngestor := func(apiKey string) *DataIngestor {
 		return &DataIngestor{
 			Config: config.Config{
 				WeakAppURL:    srv.URL,
 				WeakAppAPIKey: apiKey,
-				// timeouts/backoffs not used directly in doRequest
 			},
 			Client:   srv.Client(),
 			Producer: &fakeProducer{},
@@ -158,7 +153,7 @@ func TestDoRequest_OK_and_Failures(t *testing.T) {
 		if retry {
 			t.Fatalf("unexpected retry=true on success")
 		}
-		// Ensure response contains expected JSON array
+
 		var items []models.ResponseItem
 		if err := json.Unmarshal(data, &items); err != nil {
 			t.Fatalf("failed to unmarshal data: %v", err)
@@ -172,7 +167,7 @@ func TestDoRequest_OK_and_Failures(t *testing.T) {
 		if err == nil {
 			t.Fatalf("expected error for unauthorized")
 		}
-		// doRequest returns true for retry on network/transient errors; for 401 it returns false.
+
 		mustEqual(t, "retry", false, retry)
 	})
 
@@ -222,7 +217,6 @@ func TestHandleItem_PublishesExpectedMessages(t *testing.T) {
 		Producer: fp,
 	}
 
-	// Air quality item
 	aqPayload := models.AirQualityPayload{CO2: 400, PM25: 12, Humidity: 45}
 	aqBytes, _ := json.Marshal(aqPayload)
 	item := models.ResponseItem{
@@ -243,7 +237,6 @@ func TestHandleItem_PublishesExpectedMessages(t *testing.T) {
 	mustEqual(t, "out.Type", "air_quality", out.Type)
 	mustEqual(t, "out.Name", "aq-sensor-1", out.Name)
 
-	// Payload inside OutgoingMessage is of type interface{} after unmarshal; re-marshal to parse into struct.
 	payloadBytes, _ := json.Marshal(out.Payload)
 	var decodedAQ models.AirQualityPayload
 	if err := json.Unmarshal(payloadBytes, &decodedAQ); err != nil {
@@ -253,7 +246,6 @@ func TestHandleItem_PublishesExpectedMessages(t *testing.T) {
 	mustEqual(t, "pm25", aqPayload.PM25, decodedAQ.PM25)
 	mustEqual(t, "humidity", aqPayload.Humidity, decodedAQ.Humidity)
 
-	// Motion item
 	fp.sendCount = 0
 	motionPayload := models.MotionPayload{MotionDetected: true}
 	mpb, _ := json.Marshal(motionPayload)
@@ -279,7 +271,6 @@ func TestHandleItem_PublishesExpectedMessages(t *testing.T) {
 	}
 	mustEqual(t, "motionDetected", motionPayload.MotionDetected, decodedMotion.MotionDetected)
 
-	// Energy item
 	fp.sendCount = 0
 	energyPayload := models.EnergyPayload{Energy: 12.34}
 	epb, _ := json.Marshal(energyPayload)
@@ -303,12 +294,11 @@ func TestHandleItem_PublishesExpectedMessages(t *testing.T) {
 	if err := json.Unmarshal(payloadBytes3, &decodedEnergy); err != nil {
 		t.Fatalf("failed to decode energy payload: %v", err)
 	}
-	// Use a delta for float comparison
+
 	if !(decodedEnergy.Energy > 12.33 && decodedEnergy.Energy < 12.35) {
 		t.Fatalf("energy mismatch: want ~12.34 got %v", decodedEnergy.Energy)
 	}
 
-	// Unsupported type should not send a message
 	fp.sendCount = 0
 	item4 := models.ResponseItem{
 		Type:    "unsupported_type",
@@ -319,7 +309,6 @@ func TestHandleItem_PublishesExpectedMessages(t *testing.T) {
 	mustEqual(t, "unsupported send count", 0, fp.sendCount)
 }
 
-// Test that sendToKafka returns an error when the producer fails.
 func TestSendToKafka_Failure(t *testing.T) {
 	fp := &fakeProducer{fail: true}
 	d := &DataIngestor{
@@ -333,7 +322,6 @@ func TestSendToKafka_Failure(t *testing.T) {
 	}
 }
 
-// Test fetchDataFromWeakApp will retry on transient server error and succeed when the server recovers.
 func TestFetchDataFromWeakApp_RetryThenSuccess(t *testing.T) {
 	callCount := 0
 	mux := http.NewServeMux()
@@ -377,9 +365,7 @@ func TestFetchDataFromWeakApp_RetryThenSuccess(t *testing.T) {
 	}
 }
 
-// Test that fetchDataFromWeakApp returns context.Canceled when the provided context is canceled.
 func TestFetchDataFromWeakApp_ContextCanceled(t *testing.T) {
-	// Server that would respond slowly to ensure context cancellation happens.
 	mux := http.NewServeMux()
 	mux.HandleFunc("/meters", func(w http.ResponseWriter, r *http.Request) {
 		time.Sleep(50 * time.Millisecond)
@@ -402,7 +388,6 @@ func TestFetchDataFromWeakApp_ContextCanceled(t *testing.T) {
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	// Cancel immediately so the request context is already canceled when used.
 	cancel()
 
 	_, err := d.fetchDataFromWeakApp(ctx)
@@ -414,12 +399,11 @@ func TestFetchDataFromWeakApp_ContextCanceled(t *testing.T) {
 	}
 }
 
-// Test poll processes items returned from the WeakApp and publishes to Kafka.
 func TestPoll_ProcessesItems(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/meters", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		// return three different types to ensure handleItem covers each branch
+
 		_, _ = w.Write([]byte(`[
 			{"type":"air_quality","name":"aq1","payload":{"co2":100,"pm25":10,"humidity":40}},
 			{"type":"motion","name":"m2","payload":{"motionDetected":false}},
@@ -442,17 +426,12 @@ func TestPoll_ProcessesItems(t *testing.T) {
 		Producer: fp,
 	}
 
-	// Call poll directly; it should fetch, unmarshal, and call handleItem for each entry.
 	d.poll(context.Background())
 
-	// Expect three messages sent (one per supported type)
 	mustEqual(t, "sent messages", 3, fp.sendCount)
 }
 
-// Additional tests to cover NewDataIngestor, Close, Run, and handleItem error branches
-
 func TestNewDataIngestor_NoBrokers_ReturnsError(t *testing.T) {
-	// Provide no Kafka brokers so creating a real producer should fail.
 	cfg := config.Config{
 		KafkaBrokers: nil,
 	}
@@ -464,12 +443,11 @@ func TestNewDataIngestor_NoBrokers_ReturnsError(t *testing.T) {
 
 func TestClose_WithAndWithoutProducer(t *testing.T) {
 	d := &DataIngestor{}
-	// nil producer should return nil error
+
 	if err := d.Close(); err != nil {
 		t.Fatalf("expected nil error when producer is nil, got %v", err)
 	}
 
-	// with fake producer
 	fp := &fakeProducer{}
 	d.Producer = fp
 	if err := d.Close(); err != nil {
@@ -506,7 +484,6 @@ func TestRun_StopsOnContextCancel(t *testing.T) {
 		errCh <- d.Run(ctx)
 	}()
 
-	// wait for run to finish
 	err := <-errCh
 	if err == nil {
 		t.Fatalf("expected error (context.Done) from Run, got nil")
@@ -523,22 +500,18 @@ func TestHandleItem_UnmarshalErrorsAndPublishFailure(t *testing.T) {
 		Producer: fp,
 	}
 
-	// invalid air_quality payload
 	item := models.ResponseItem{Type: "air_quality", Name: "a1", Payload: json.RawMessage(`invalid`)}
 	d.handleItem(item)
-	// invalid payload should not increment sendCount
 	mustEqual(t, "sendCount after invalid payload", 0, fp.sendCount)
 
-	// valid payload but producer fails when sending; fakeProducer increments sendCount before returning error
 	validAQ := models.AirQualityPayload{CO2: 1, PM25: 2, Humidity: 3}
 	b, _ := json.Marshal(validAQ)
 	item2 := models.ResponseItem{Type: "air_quality", Name: "a2", Payload: json.RawMessage(b)}
 	d.handleItem(item2)
-	// although the producer fails, fakeProducer increments sendCount
+
 	mustEqual(t, "sendCount after publish failure", 1, fp.sendCount)
 }
 
-// Test various HTTP status codes returned by the WeakApp and assert retry semantics.
 func TestDoRequest_StatusCodes(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/meters", func(w http.ResponseWriter, r *http.Request) {
@@ -572,7 +545,6 @@ func TestDoRequest_StatusCodes(t *testing.T) {
 		}
 	}
 
-	// 401: should not retry
 	d401 := makeIngestor("401")
 	_, err401, retry401 := d401.doRequest(context.Background())
 	if err401 == nil {
@@ -580,7 +552,6 @@ func TestDoRequest_StatusCodes(t *testing.T) {
 	}
 	mustEqual(t, "401 retry", false, retry401)
 
-	// 403: should not retry
 	d403 := makeIngestor("403")
 	_, err403, retry403 := d403.doRequest(context.Background())
 	if err403 == nil {
@@ -588,7 +559,6 @@ func TestDoRequest_StatusCodes(t *testing.T) {
 	}
 	mustEqual(t, "403 retry", false, retry403)
 
-	// 404: should retry (transient)
 	d404 := makeIngestor("404")
 	_, err404, retry404 := d404.doRequest(context.Background())
 	if err404 == nil {
@@ -596,7 +566,6 @@ func TestDoRequest_StatusCodes(t *testing.T) {
 	}
 	mustEqual(t, "404 retry", true, retry404)
 
-	// 429: should retry (rate limited)
 	d429 := makeIngestor("429")
 	_, err429, retry429 := d429.doRequest(context.Background())
 	if err429 == nil {
@@ -604,7 +573,6 @@ func TestDoRequest_StatusCodes(t *testing.T) {
 	}
 	mustEqual(t, "429 retry", true, retry429)
 
-	// success path for sanity
 	dok := makeIngestor("ok")
 	data, errok, retryok := dok.doRequest(context.Background())
 	if errok != nil {
@@ -620,14 +588,12 @@ func TestDoRequest_StatusCodes(t *testing.T) {
 	}
 }
 
-// Transport that always returns a client-side error to simulate network failures.
 type errTransport struct{}
 
 func (e *errTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	return nil, fmt.Errorf("simulated network error")
 }
 
-// Test that client.Do returning an error yields a retryable error from doRequest.
 func TestDoRequest_ClientError(t *testing.T) {
 	d := &DataIngestor{
 		Config: config.Config{
@@ -645,7 +611,6 @@ func TestDoRequest_ClientError(t *testing.T) {
 	mustEqual(t, "client error retry", true, retry)
 }
 
-// Reader that always fails to simulate ReadAll error.
 type readErrRC struct{}
 
 func (r readErrRC) Read(p []byte) (int, error) { return 0, fmt.Errorf("simulated read error") }
@@ -662,7 +627,6 @@ func (r *readErrTransport) RoundTrip(req *http.Request) (*http.Response, error) 
 	}, nil
 }
 
-// Test that an error while reading the response body causes doRequest to return a retryable error.
 func TestDoRequest_ReadAllError(t *testing.T) {
 	d := &DataIngestor{
 		Config: config.Config{
@@ -680,7 +644,6 @@ func TestDoRequest_ReadAllError(t *testing.T) {
 	mustEqual(t, "read error retry", true, retry)
 }
 
-// Bad body reader that returns an error on Read
 type badBody struct{}
 
 func (b *badBody) Read(p []byte) (int, error) { return 0, fmt.Errorf("read error") }
@@ -737,7 +700,6 @@ func TestDoRequest_WhitespaceBody(t *testing.T) {
 	mustEqual(t, "whitespace retry", true, retry)
 }
 
-// New tests to increase coverage: unsupported type and poll unmarshal error
 func TestHandleItem_UnsupportedType_NoSend(t *testing.T) {
 	fp := &fakeProducer{}
 	d := &DataIngestor{
@@ -772,21 +734,16 @@ func TestPoll_UnmarshalError(t *testing.T) {
 		Producer: fp,
 	}
 
-	// Provide a cancellable / timeout context so poll doesn't block retrying forever.
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel()
 
-	// Should return when context expires and should not send any messages.
 	d.poll(ctx)
 	mustEqual(t, "sendCount after unmarshal error", 0, fp.sendCount)
 }
 
-// New test: server responds with a payload larger than allowed maxResponseBytes (5 MB),
-// ensuring the doRequest path for "response too large" is exercised.
 func TestDoRequest_ResponseTooLarge(t *testing.T) {
 	h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		// produce 6 MB payload to exceed the 5 MB limit in doRequest
 		b := make([]byte, 6*1024*1024)
 		for i := range b {
 			b[i] = 'x'
@@ -813,7 +770,6 @@ func TestDoRequest_ResponseTooLarge(t *testing.T) {
 	mustEqual(t, "too large retry", true, retry)
 }
 
-// New test: 400 Bad Request should return an error and retry=false
 func TestDoRequest_BadRequest400(t *testing.T) {
 	h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "bad request", http.StatusBadRequest)
@@ -837,10 +793,8 @@ func TestDoRequest_BadRequest400(t *testing.T) {
 	mustEqual(t, "400 retry", false, retry)
 }
 
-// New test: unexpected redirect (3xx) should be treated as unexpected error and be retryable
 func TestDoRequest_RedirectStatus(t *testing.T) {
 	h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// return 302 Found (redirect)
 		w.Header().Set("Location", "/other")
 		w.WriteHeader(http.StatusFound)
 	})
@@ -860,7 +814,6 @@ func TestDoRequest_RedirectStatus(t *testing.T) {
 	if err == nil {
 		t.Fatalf("expected error for redirect status")
 	}
-	// redirect (3xx) is not a 4xx client error or 5xx server error in the switch,
-	// it falls through to unexpected -> treated as retryable
+
 	mustEqual(t, "redirect retry", true, retry)
 }
