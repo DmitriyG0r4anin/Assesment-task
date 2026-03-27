@@ -11,6 +11,7 @@
 *.sln.docstates
 *.env
 
+docker-compose.override.yaml
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
 
@@ -416,3 +417,5 @@ FodyWeavers.xsd
 *.msix
 *.msm
 *.msp
+
+coverage.out
