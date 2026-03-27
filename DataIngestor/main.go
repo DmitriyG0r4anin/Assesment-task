@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -75,8 +76,10 @@ func main() {
 	initialBackoff := getEnvDuration(config.EnvInitialBackoff, 1*time.Minute)
 	maxBackoff := getEnvDuration(config.EnvMaxBackoff, 30*time.Second)
 	requestTimeout := getEnvDuration(config.EnvRequestTimeout, 5*time.Minute)
+	producerRetryCount, err :=  strconv.Atoi(getEnv(config.EnvProducerRetryCount, "5"))
+	if err != nil {
+		log.Fatal("PRODUCER_RETRY_COUNT is not a number. Provide an integer value for this parameter")
 
-	kafkaBrokers := []string{}
 	if kafkaBrokersEnv != "" {
 		for _, b := range strings.Split(kafkaBrokersEnv, ",") {
 			if s := strings.TrimSpace(b); s != "" {
@@ -98,6 +101,7 @@ func main() {
 		InitialBackoff: initialBackoff,
 		MaxBackoff:     maxBackoff,
 		RequestTimeout: requestTimeout,
+		ProducerRetryCount: producerRetryCount,
 	}
 
 	ing, err := ingestor.NewDataIngestor(cfg)

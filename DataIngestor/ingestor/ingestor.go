@@ -26,7 +26,7 @@ func NewDataIngestor(config config.Config) (*DataIngestor, error) {
 		Timeout: config.RequestTimeout,
 	}
 
-	kafkaConfig := broker.DefaultSaramaConfig()
+	kafkaConfig := broker.SaramaConfig(config.ProducerRetryCount)
 	producer, err := broker.NewKafkaProducer(config.KafkaBrokers, config.KafkaTopic, kafkaConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Kafka producer: %w", err)

@@ -62,10 +62,10 @@ func (kp *KafkaProducer) Close() error {
 	return kp.producer.Close()
 }
 
-func DefaultSaramaConfig() *sarama.Config {
+func SaramaConfig(maxRetries int) *sarama.Config {
 	cfg := sarama.NewConfig()
 	cfg.Producer.RequiredAcks = sarama.WaitForAll
-	cfg.Producer.Retry.Max = 5
+	cfg.Producer.Retry.Max = maxRetries
 	cfg.Producer.Return.Successes = true
 	return cfg
 }

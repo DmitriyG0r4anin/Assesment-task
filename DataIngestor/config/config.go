@@ -13,6 +13,7 @@ const (
 	EnvMaxBackoff     = "MAX_BACKOFF"
 	EnvRequestTimeout = "REQUEST_TIMEOUT"
 	EnvWeakAppAPIKey  = "WEAKAPP_API_KEY"
+	EnvProducerRetryCount = "PRODUCER_RETRY_COUNT"
 )
 
 type Config struct {
@@ -24,4 +25,5 @@ type Config struct {
 	InitialBackoff time.Duration
 	MaxBackoff     time.Duration
 	RequestTimeout time.Duration
+	ProducerRetryCount int
 }
