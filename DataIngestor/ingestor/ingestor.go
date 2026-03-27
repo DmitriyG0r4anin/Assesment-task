@@ -10,21 +10,15 @@ import (
 	"strings"
 	"time"
 
-	"github.com/IBM/sarama"
+	"github.com/dataingestor/broker"
 	"github.com/dataingestor/config"
 	"github.com/dataingestor/models"
 )
 
-type Producer interface {
-	SendMessage(msg *sarama.ProducerMessage) (partition int32, offset int64, err error)
-	SendMessages(msgs []*sarama.ProducerMessage) error
-	Close() error
-}
-
 type DataIngestor struct {
 	Config   config.Config
 	Client   *http.Client
-	Producer Producer
+	Producer broker.Producer
 }
 
 func NewDataIngestor(config config.Config) (*DataIngestor, error) {
@@ -32,12 +26,8 @@ func NewDataIngestor(config config.Config) (*DataIngestor, error) {
 		Timeout: config.RequestTimeout,
 	}
 
-	kafkaConfig := sarama.NewConfig()
-	kafkaConfig.Producer.RequiredAcks = sarama.WaitForAll
-	kafkaConfig.Producer.Retry.Max = 5
-	kafkaConfig.Producer.Return.Successes = true
-
-	producer, err := sarama.NewSyncProducer(config.KafkaBrokers, kafkaConfig)
+	kafkaConfig := broker.DefaultSaramaConfig()
+	producer, err := broker.NewKafkaProducer(config.KafkaBrokers, config.KafkaTopic, kafkaConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Kafka producer: %w", err)
 	}
@@ -189,17 +179,12 @@ func validateResponse(body []byte) ([]byte, error, bool) {
 }
 
 func (d *DataIngestor) sendToKafka(data []byte) error {
-	message := &sarama.ProducerMessage{
-		Topic:     d.Config.KafkaTopic,
-		Value:     sarama.ByteEncoder(data),
-		Timestamp: time.Now(),
-	}
-
-	partition, offset, err := d.Producer.SendMessage(message)
+	partition, offset, err := d.Producer.Send(&broker.Message{
+		Value: data,
+	})
 	if err != nil {
 		return fmt.Errorf("failed to send message to Kafka: %w", err)
 	}
-
 	log.Printf("Message sent to Kafka: partition=%d, offset=%d", partition, offset)
 	return nil
 }
@@ -247,7 +232,7 @@ func (d *DataIngestor) poll(ctx context.Context) {
 
 func (d *DataIngestor) handleItem(item models.ResponseItem) {
 	// local helper to marshal an outgoing message and publish to Kafka
-	publish := func(typ, name string, payload interface{}) {
+	publish := func(typ, name string, payload any) {
 		out := models.OutgoingMessage{
 			Type:      typ,
 			Name:      name,

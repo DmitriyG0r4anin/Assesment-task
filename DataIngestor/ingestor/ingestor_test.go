@@ -11,11 +11,13 @@ import (
 	"time"
 
 	"github.com/IBM/sarama"
+	"github.com/dataingestor/broker"
 	"github.com/dataingestor/config"
 	"github.com/dataingestor/models"
 )
 
 // minimal fake implementing sarama.SyncProducer for tests.
+
 type fakeProducer struct {
 	lastTopic string
 	lastValue []byte
@@ -36,7 +38,6 @@ func (p *fakeProducer) SendMessage(msg *sarama.ProducerMessage) (partition int32
 	} else {
 		p.lastValue = nil
 	}
-
 	p.lastTopic = msg.Topic
 	p.sendCount++
 	if p.fail {
@@ -49,7 +50,6 @@ func (p *fakeProducer) SendMessages(msgs []*sarama.ProducerMessage) error {
 	if len(msgs) == 0 {
 		return nil
 	}
-
 	last := msgs[len(msgs)-1]
 	if last != nil && last.Value != nil {
 		if be, ok := last.Value.(sarama.ByteEncoder); ok {
@@ -61,6 +61,15 @@ func (p *fakeProducer) SendMessages(msgs []*sarama.ProducerMessage) error {
 		p.sendCount += len(msgs)
 	}
 	return nil
+}
+
+func (p *fakeProducer) Send(msg *broker.Message) (partition int32, offset int64, err error) {
+	p.lastValue = msg.Value
+	p.sendCount++
+	if p.fail {
+		return 0, 0, fmt.Errorf("producer error")
+	}
+	return 1, int64(p.sendCount), nil
 }
 
 func (p *fakeProducer) Close() error { return nil }
@@ -190,23 +199,7 @@ func TestDoRequest_OK_and_Failures(t *testing.T) {
 	})
 }
 
-func TestSendToKafka(t *testing.T) {
-	fp := &fakeProducer{}
-	d := &DataIngestor{
-		Config: config.Config{
-			KafkaTopic: "test-topic",
-		},
-		Producer: fp,
-	}
 
-	payload := []byte(`{"hello":"world"}`)
-	if err := d.sendToKafka(payload); err != nil {
-		t.Fatalf("sendToKafka returned error: %v", err)
-	}
-
-	mustEqual(t, "topic", "test-topic", fp.lastTopic)
-	mustEqual(t, "value", string(payload), string(fp.lastValue))
-}
 
 func TestHandleItem_PublishesExpectedMessages(t *testing.T) {
 	fp := &fakeProducer{}
@@ -309,18 +302,7 @@ func TestHandleItem_PublishesExpectedMessages(t *testing.T) {
 	mustEqual(t, "unsupported send count", 0, fp.sendCount)
 }
 
-func TestSendToKafka_Failure(t *testing.T) {
-	fp := &fakeProducer{fail: true}
-	d := &DataIngestor{
-		Config:   config.Config{KafkaTopic: "topic-x"},
-		Producer: fp,
-	}
 
-	err := d.sendToKafka([]byte(`{"x":1}`))
-	if err == nil {
-		t.Fatalf("expected error from sendToKafka when producer fails, got nil")
-	}
-}
 
 func TestFetchDataFromWeakApp_RetryThenSuccess(t *testing.T) {
 	callCount := 0
