@@ -19,8 +19,8 @@ func loadDotEnv(path string) {
 	if err != nil {
 		return
 	}
-	lines := strings.Split(string(data), "\n")
-	for _, line := range lines {
+	lines := strings.SplitSeq(string(data), "\n")
+	for line := range lines {
 		line = strings.TrimSpace(line)
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue
@@ -79,9 +79,11 @@ func main() {
 	producerRetryCount, err :=  strconv.Atoi(getEnv(config.EnvProducerRetryCount, "5"))
 	if err != nil {
 		log.Fatal("PRODUCER_RETRY_COUNT is not a number. Provide an integer value for this parameter")
+	}
 
+	kafkaBrokers := []string{}
 	if kafkaBrokersEnv != "" {
-		for _, b := range strings.Split(kafkaBrokersEnv, ",") {
+		for b := range strings.SplitSeq(kafkaBrokersEnv, ",") {
 			if s := strings.TrimSpace(b); s != "" {
 				kafkaBrokers = append(kafkaBrokers, s)
 			}
