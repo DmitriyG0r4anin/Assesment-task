@@ -61,7 +61,6 @@ services:
     environment:
       WEAKAPP_URL: ${WEAKAPP_URL:-http://weak-app:8080}
       WEAKAPP_API_KEY: ${WEAKAPP_API_KEY}
-
       KAFKA_TOPIC: ${KAFKA_TOPIC:-meter-data}
       POLL_INTERVAL: ${POLL_INTERVAL:-5m}
       KAFKA_BROKERS: ${KAFKA_BROKERS:-broker:29092}
@@ -71,6 +70,18 @@ services:
     restart: unless-stopped
 
   # data-processor:
+  dataprocessor:
+    image: ${DOCKER_REGISTRY-}dataprocessor
+    build:
+      context: ./DataProcessor
+      dockerfile: DataProcessor/DataProcessor.Presentation/Dockerfile
+    environment:
+      ASPNETCORE_HTTP_PORTS: 8090
+      ASPNETCORE_HTTPS_PORTS: 8091
+      KAFKA_BROKERS: ${KAFKA_BROKERS:-broker:29092}
+      KAFKA_TOPIC: ${KAFKA_TOPIC:-meter-data}
+    depends_on:
+      - broker
 
   # graphql-api-gateway:
 

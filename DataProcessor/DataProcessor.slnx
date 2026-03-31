@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="DataProcessor.Application/DataProcessor.Application.csproj" Id="51bfb04f-66d5-4e6e-a2e0-bf327e8ebab0" />
+  <Project Path="DataProcessor.Domain/DataProcessor.Domain.csproj" Id="6abefa0f-6fd1-427e-96e1-1960c3d7db67" />
+  <Project Path="DataProcessor.Infrastructure/DataProcessor.Infrastructure.csproj" Id="75e55259-0bf0-47b0-97f4-a805bf118ab5" />
+  <Project Path="DataProcessor.Presentation/DataProcessor.Presentation.csproj" Id="6c55e3d3-3a24-4a6f-9cc9-8bf37a246c4f" />
+</Solution>
