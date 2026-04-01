@@ -1,0 +1,58 @@
+syntax = "proto3";
+
+option csharp_namespace = "DataProcessor.Presentation.Protos";
+
+import "google/protobuf/timestamp.proto";
+
+package parameters;
+
+service ParameterService {
+  rpc GetParameters (GetParametersRequest) returns (GetParametersResponse);
+  rpc GetParameter (GetParameterRequest) returns (GetParameterResponse);
+}
+
+message GetParametersRequest {
+  optional google.protobuf.Timestamp timestamp = 1;
+  optional string room = 2;
+}
+
+message GetParameterRequest {
+  string parameter_id = 1;
+  optional google.protobuf.Timestamp timestamp = 2;
+  optional string room = 3;
+}
+
+message ParameterMessage {
+  string id = 1;
+  string type = 2;
+  string room_name = 3;
+  google.protobuf.Timestamp timestamp = 4;
+  optional int32 pm25 = 5;
+  optional int32 co2 = 6;
+  optional int32 humidity = 7;
+  optional float amount = 8;
+  optional bool is_detected = 9;
+}
+
+message ErrorResponse {
+  int32 code = 1;
+  string message = 2;
+}
+
+message GetParametersResponse {
+  oneof result {
+    ParameterList data = 1;
+    ErrorResponse error = 2;
+  }
+}
+
+message ParameterList {
+  repeated ParameterMessage parameters = 1;
+}
+
+message GetParameterResponse {
+  oneof result {
+    ParameterMessage data = 1;
+    ErrorResponse error = 2;
+  }
+}
