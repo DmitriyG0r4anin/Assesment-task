@@ -5,7 +5,6 @@ public class Result<T>
     public T? Value { get; }
     public Error Error { get; }
     public bool IsSuccess { get; }
-    public bool IsFailure => !IsSuccess;
 
     private Result(T value)
     {
@@ -16,7 +15,6 @@ public class Result<T>
 
     private Result(Error error)
     {
-        Value = default;
         Error = error;
         IsSuccess = false;
     }

@@ -1,4 +1,6 @@
 using DataProcessor.Application.Abstractions.Repositories;
+using DataProcessor.Application.Abstractions.Repositories.Base;
+using DataProcessor.Infrastructure.Configuration;
 using DataProcessor.Infrastructure.Messaging;
 using DataProcessor.Infrastructure.Persistence;
 using DataProcessor.Infrastructure.Persistence.Repositories;
@@ -14,19 +16,19 @@ public static class DependencyInjection
         IConfiguration configuration)
     {
         // MongoDB
-        services.Configure<MongoDbSettings>(
-            configuration.GetSection("MongoDb"));
+        services.Configure<MongoDbOptions>(
+            configuration.GetSection(MongoDbOptions.SectionName));
+
         services.AddSingleton<MongoDbContext>();
 
         // Repositories
         services.AddScoped<IRoomRepository, RoomRepository>();
-        services.AddScoped<IAirQualityRepository, AirQualityRepository>();
-        services.AddScoped<IEnergyRepository, EnergyRepository>();
-        services.AddScoped<IMotionRepository, MotionRepository>();
+        services.AddScoped(typeof(IMetricBaseRepository<>),typeof(MetricBaseRepository<>));
 
         // Kafka
-        services.Configure<KafkaSettings>(
-            configuration.GetSection("Kafka"));
+        services.Configure<KafkaConfig>(
+            configuration.GetSection(KafkaConfig.SectionName));
+
         services.AddHostedService<KafkaConsumerService>();
 
         return services;

@@ -1,11 +1,10 @@
+using DataProcessor.Application.Abstractions.Repositories.Base;
 using DataProcessor.Domain.Entities;
 
 namespace DataProcessor.Application.Abstractions.Repositories;
 
-public interface IRoomRepository
+public interface IRoomRepository : IBaseRepository<Room>
 {
-    Task<Room?> GetByIdAsync(string id, CancellationToken ct = default);
-    Task<Room?> GetByNameAsync(string name, CancellationToken ct = default);
-    Task<Room> GetOrCreateAsync(string name, CancellationToken ct = default);
-    Task<List<Room>> GetAllAsync(CancellationToken ct = default);
+    Task<Room?> GetByNameAsync(string name, CancellationToken cancellationToken = default);
+    Task<Room> GetOrCreateAsync(string name, CancellationToken cancellationToken = default);
 }

@@ -1,27 +1,12 @@
-using MongoDB.Bson;
-using MongoDB.Bson.Serialization.Attributes;
+using DataProcessor.Domain.Entities.Base;
 
 namespace DataProcessor.Domain.Entities;
 
-public class AirQuality
+public class AirQuality : MetricBaseEntity
 {
-    [BsonId]
-    [BsonRepresentation(BsonType.ObjectId)]
-    public string Id { get; set; } = null!;
-
-    [BsonElement("roomId")]
-    [BsonRepresentation(BsonType.ObjectId)]
-    public string RoomId { get; set; } = null!;
-
-    [BsonElement("pm25")]
     public int Pm25 { get; set; }
 
-    [BsonElement("co2")]
     public int Co2 { get; set; }
 
-    [BsonElement("humidity")]
     public int Humidity { get; set; }
-
-    [BsonElement("timestamp")]
-    public DateTime Timestamp { get; set; }
 }

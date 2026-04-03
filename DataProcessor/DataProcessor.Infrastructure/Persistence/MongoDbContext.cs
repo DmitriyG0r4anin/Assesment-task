@@ -1,21 +1,18 @@
 using DataProcessor.Domain.Entities;
+using DataProcessor.Infrastructure.Configuration;
 using Microsoft.Extensions.Options;
 using MongoDB.Driver;
 
 namespace DataProcessor.Infrastructure.Persistence;
 
-public class MongoDbContext
+public class MongoDbContext(IOptions<MongoDbOptions> settings)
 {
-    private readonly IMongoDatabase _database;
+    private readonly MongoDbOptions _configuration = settings.Value;
 
-    public MongoDbContext(IOptions<MongoDbSettings> settings)
-    {
-        var client = new MongoClient(settings.Value.ConnectionString);
-        _database = client.GetDatabase(settings.Value.DatabaseName);
-    }
+    private readonly IMongoDatabase _database = new MongoClient(settings.Value.ConnectionString).GetDatabase(settings.Value.DatabaseName);
 
-    public IMongoCollection<Room> Rooms => _database.GetCollection<Room>("rooms");
-    public IMongoCollection<AirQuality> AirQualities => _database.GetCollection<AirQuality>("air_qualities");
-    public IMongoCollection<Energy> Energies => _database.GetCollection<Energy>("energies");
-    public IMongoCollection<Motion> Motions => _database.GetCollection<Motion>("motions");
+    public IMongoCollection<Room> Rooms => _database.GetCollection<Room>(_configuration.Collections.Rooms);
+    public IMongoCollection<AirQuality> AirQualities => _database.GetCollection<AirQuality>(_configuration.Collections.AirQualities);
+    public IMongoCollection<Energy> Energies => _database.GetCollection<Energy>(_configuration.Collections.Energies);
+    public IMongoCollection<Motion> Motions => _database.GetCollection<Motion>(_configuration.Collections.Motion);
 }

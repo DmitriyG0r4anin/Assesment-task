@@ -15,4 +15,8 @@
     <ProjectReference Include="..\DataProcessor.Domain\DataProcessor.Domain.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Mapping\" />
+  </ItemGroup>
+
 </Project>

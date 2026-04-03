@@ -1,34 +1,27 @@
-using System.Text.Json;
 using Confluent.Kafka;
 using DataProcessor.Application.Abstractions.Repositories;
+using DataProcessor.Application.Abstractions.Repositories.Base;
+using DataProcessor.Domain.Constants;
 using DataProcessor.Domain.Entities;
-using DataProcessor.Infrastructure.Messaging.Models;
+using DataProcessor.Infrastructure.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using System.Text.Json;
 
 namespace DataProcessor.Infrastructure.Messaging;
 
-public class KafkaConsumerService : BackgroundService
+public class KafkaConsumerService(
+    IServiceScopeFactory scopeFactory,
+    ILogger<KafkaConsumerService> logger,
+    IOptions<KafkaConfig> settings) : BackgroundService
 {
-    private readonly IServiceScopeFactory _scopeFactory;
-    private readonly ILogger<KafkaConsumerService> _logger;
-    private readonly KafkaSettings _settings;
-
-    public KafkaConsumerService(
-        IServiceScopeFactory scopeFactory,
-        ILogger<KafkaConsumerService> logger,
-        IOptions<KafkaSettings> settings)
-    {
-        _scopeFactory = scopeFactory;
-        _logger = logger;
-        _settings = settings.Value;
-    }
+    private readonly KafkaConfig _settings = settings.Value;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        _logger.LogInformation(
+        logger.LogInformation(
             "Kafka consumer starting. Brokers: {Brokers}, Topic: {Topic}, Group: {GroupId}",
             _settings.Brokers, _settings.Topic, _settings.GroupId);
 
@@ -54,19 +47,19 @@ public class KafkaConsumerService : BackgroundService
                     if (result?.Message?.Value is null)
                         continue;
 
-                    _logger.LogInformation("Received Kafka message: {Message}", result.Message.Value);
+                    logger.LogInformation("Received Kafka message: {Message}", result.Message.Value);
 
                     await ProcessMessageAsync(result.Message.Value, stoppingToken);
                 }
                 catch (ConsumeException ex)
                 {
-                    _logger.LogError(ex, "Error consuming Kafka message");
+                    logger.LogError(ex, "Error consuming Kafka message");
                 }
             }
         }
         catch (OperationCanceledException)
         {
-            _logger.LogInformation("Kafka consumer stopping");
+            logger.LogInformation("Kafka consumer stopping");
         }
         finally
         {
@@ -81,44 +74,44 @@ public class KafkaConsumerService : BackgroundService
             var message = JsonSerializer.Deserialize<KafkaMessage>(messageJson);
             if (message is null)
             {
-                _logger.LogWarning("Failed to deserialize Kafka message: {Message}", messageJson);
+                logger.LogWarning("Failed to deserialize Kafka message: {Message}", messageJson);
                 return;
             }
 
-            using var scope = _scopeFactory.CreateScope();
+            using var scope = scopeFactory.CreateScope();
             var roomRepository = scope.ServiceProvider.GetRequiredService<IRoomRepository>();
 
             var room = await roomRepository.GetOrCreateAsync(message.Name, ct);
 
             switch (message.Type)
             {
-                case "air_quality":
+                case MetricTypes.AirQuality:
                     await ProcessAirQualityAsync(scope, message, room.Id, ct);
                     break;
-                case "energy":
+                case MetricTypes.Energy:
                     await ProcessEnergyAsync(scope, message, room.Id, ct);
                     break;
-                case "motion":
+                case MetricTypes.Motion:
                     await ProcessMotionAsync(scope, message, room.Id, ct);
                     break;
                 default:
-                    _logger.LogWarning("Unknown message type: {Type}", message.Type);
+                    logger.LogWarning("Unknown message type: {Type}", message.Type);
                     break;
             }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error processing Kafka message");
+            logger.LogError(ex, "Error processing Kafka message");
         }
     }
 
     private async Task ProcessAirQualityAsync(
-        IServiceScope scope, KafkaMessage message, string roomId, CancellationToken ct)
+        IServiceScope scope, KafkaMessage message, string roomId, CancellationToken cancellationToken)
     {
         var payload = JsonSerializer.Deserialize<AirQualityPayload>(message.Payload.GetRawText());
         if (payload is null) return;
 
-        var repository = scope.ServiceProvider.GetRequiredService<IAirQualityRepository>();
+        var repository = scope.ServiceProvider.GetRequiredService<IMetricBaseRepository<AirQuality>>();
         var entity = new AirQuality
         {
             RoomId = roomId,
@@ -128,8 +121,8 @@ public class KafkaConsumerService : BackgroundService
             Timestamp = message.Timestamp
         };
 
-        await repository.InsertAsync(entity, ct);
-        _logger.LogInformation("Saved AirQuality data for room {RoomId}", roomId);
+        await repository.InsertAsync(entity, cancellationToken);
+        logger.LogInformation("Saved AirQuality data for room {RoomId}", roomId);
     }
 
     private async Task ProcessEnergyAsync(
@@ -138,7 +131,7 @@ public class KafkaConsumerService : BackgroundService
         var payload = JsonSerializer.Deserialize<EnergyPayload>(message.Payload.GetRawText());
         if (payload is null) return;
 
-        var repository = scope.ServiceProvider.GetRequiredService<IEnergyRepository>();
+        var repository = scope.ServiceProvider.GetRequiredService<IMetricBaseRepository<Energy>>();
         var entity = new Energy
         {
             RoomId = roomId,
@@ -147,7 +140,7 @@ public class KafkaConsumerService : BackgroundService
         };
 
         await repository.InsertAsync(entity, ct);
-        _logger.LogInformation("Saved Energy data for room {RoomId}", roomId);
+        logger.LogInformation("Saved Energy data for room {RoomId}", roomId);
     }
 
     private async Task ProcessMotionAsync(
@@ -156,7 +149,7 @@ public class KafkaConsumerService : BackgroundService
         var payload = JsonSerializer.Deserialize<MotionPayload>(message.Payload.GetRawText());
         if (payload is null) return;
 
-        var repository = scope.ServiceProvider.GetRequiredService<IMotionRepository>();
+        var repository = scope.ServiceProvider.GetRequiredService<IMetricBaseRepository<Motion>>();
         var entity = new Motion
         {
             RoomId = roomId,
@@ -165,6 +158,6 @@ public class KafkaConsumerService : BackgroundService
         };
 
         await repository.InsertAsync(entity, ct);
-        _logger.LogInformation("Saved Motion data for room {RoomId}", roomId);
+        logger.LogInformation("Saved Motion data for room {RoomId}", roomId);
     }
 }

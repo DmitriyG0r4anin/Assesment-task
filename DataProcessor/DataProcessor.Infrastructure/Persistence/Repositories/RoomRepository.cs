@@ -4,37 +4,25 @@ using MongoDB.Driver;
 
 namespace DataProcessor.Infrastructure.Persistence.Repositories;
 
-public class RoomRepository(MongoDbContext context) : IRoomRepository
+public class RoomRepository(MongoDbContext context) : BaseRepository<Room>(context.Rooms.Database, context.Rooms.CollectionNamespace.CollectionName), IRoomRepository
 {
-    public async Task<Room?> GetByIdAsync(string id, CancellationToken ct = default)
-    {
-        return await context.Rooms
-            .Find(r => r.Id == id)
-            .FirstOrDefaultAsync(ct);
-    }
+    private readonly IMongoCollection<Room> _collection = context.Rooms;
 
-    public async Task<Room?> GetByNameAsync(string name, CancellationToken ct = default)
+    public async Task<Room?> GetByNameAsync(string name, CancellationToken cancellationToken = default)
     {
-        return await context.Rooms
+        return await _collection
             .Find(r => r.Name == name)
-            .FirstOrDefaultAsync(ct);
+            .FirstOrDefaultAsync(cancellationToken);
     }
 
-    public async Task<Room> GetOrCreateAsync(string name, CancellationToken ct = default)
+    public async Task<Room> GetOrCreateAsync(string name, CancellationToken cancellationToken = default)
     {
-        var existing = await GetByNameAsync(name, ct);
+        var existing = await GetByNameAsync(name, cancellationToken);
         if (existing is not null)
             return existing;
 
         var room = new Room { Name = name };
-        await context.Rooms.InsertOneAsync(room, cancellationToken: ct);
+        await _collection.InsertOneAsync(room, cancellationToken: cancellationToken);
         return room;
-    }
-
-    public async Task<List<Room>> GetAllAsync(CancellationToken ct = default)
-    {
-        return await context.Rooms
-            .Find(_ => true)
-            .ToListAsync(ct);
     }
 }

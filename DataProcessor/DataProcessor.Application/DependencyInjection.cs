@@ -1,4 +1,3 @@
-using DataProcessor.Application.Mapping;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace DataProcessor.Application;
@@ -9,8 +8,6 @@ public static class DependencyInjection
     {
         services.AddMediatR(cfg =>
             cfg.RegisterServicesFromAssembly(typeof(DependencyInjection).Assembly));
-
-        MappingConfig.RegisterMappings();
 
         return services;
     }

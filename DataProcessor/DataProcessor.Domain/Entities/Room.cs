@@ -1,14 +1,8 @@
-using MongoDB.Bson;
-using MongoDB.Bson.Serialization.Attributes;
+using DataProcessor.Domain.Entities.Base;
 
 namespace DataProcessor.Domain.Entities;
 
-public class Room
+public class Room : BaseEntity
 {
-    [BsonId]
-    [BsonRepresentation(BsonType.ObjectId)]
-    public string Id { get; set; } = null!;
-
-    [BsonElement("name")]
-    public string Name { get; set; } = null!;
+    public required string Name { get; set; }
 }
