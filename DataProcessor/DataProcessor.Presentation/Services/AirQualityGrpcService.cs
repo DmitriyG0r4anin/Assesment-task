@@ -1,9 +1,5 @@
 using DataProcessor.Application.Queries.GetAirQualities;
 using DataProcessor.Application.Queries.GetAirQuality;
-using DataProcessor.Presentation.Protos;
-using Grpc.Core;
-using Mapster;
-using MediatR;
 
 namespace DataProcessor.Presentation.Services;
 

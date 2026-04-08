@@ -1,12 +1,11 @@
-using DataProcessor.Application.Abstractions.Repositories.Base;
 using DataProcessor.Domain.Entities.Base;
 using MongoDB.Driver;
 
 namespace DataProcessor.Infrastructure.Persistence.Repositories;
 
-public class BaseRepository<T>(IMongoDatabase database, string collectionName) : IBaseRepository<T> where T : BaseEntity
+public class BaseRepository<T>(IMongoDatabase database) : IBaseRepository<T> where T : BaseEntity
 {
-    protected readonly IMongoCollection<T> Collection = database.GetCollection<T>(collectionName);
+    protected readonly IMongoCollection<T> Collection = database.GetCollection<T>(nameof(T));
 
     public virtual async Task<T?> GetByIdAsync(string id, CancellationToken cancellationToken = default)
     {
@@ -26,9 +25,8 @@ public class BaseRepository<T>(IMongoDatabase database, string collectionName) :
 
     public virtual async Task UpdateAsync(T entity, CancellationToken cancellationToken = default)
     {
-        var idProp = typeof(T).GetProperty("Id");
-        if (idProp == null)
-            throw new InvalidOperationException("Entity must have an Id property.");
+        var idProp = typeof(T).GetProperty("Id") 
+            ?? throw new InvalidOperationException("Entity must have an Id property.");
 
         var id = idProp.GetValue(entity)?.ToString();
         if (string.IsNullOrEmpty(id))

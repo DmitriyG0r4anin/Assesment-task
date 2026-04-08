@@ -1,6 +1,3 @@
-using DataProcessor.Application.Abstractions.Repositories.Base;
-using DataProcessor.Domain.Entities;
-
 namespace DataProcessor.Application.Abstractions.Repositories;
 
 public interface IRoomRepository : IBaseRepository<Room>

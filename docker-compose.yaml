@@ -81,10 +81,9 @@ services:
 
   # data-processor:
   dataprocessor:
-    image: ${DOCKER_REGISTRY-}dataprocessor
     build:
       context: ./DataProcessor
-      dockerfile: DataProcessor/DataProcessor.Presentation/Dockerfile
+      dockerfile: DataProcessor.Presentation/Dockerfile
     environment:
       ASPNETCORE_HTTP_PORTS: 8090
       ASPNETCORE_HTTPS_PORTS: 8091

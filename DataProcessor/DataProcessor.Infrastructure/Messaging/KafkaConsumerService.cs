@@ -1,6 +1,4 @@
 using Confluent.Kafka;
-using DataProcessor.Application.Abstractions.Repositories;
-using DataProcessor.Application.Abstractions.Repositories.Base;
 using DataProcessor.Domain.Constants;
 using DataProcessor.Domain.Entities;
 using DataProcessor.Infrastructure.Configuration;

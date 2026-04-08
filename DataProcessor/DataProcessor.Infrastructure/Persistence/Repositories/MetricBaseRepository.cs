@@ -1,11 +1,10 @@
-using DataProcessor.Application.Abstractions.Repositories.Base;
 using DataProcessor.Domain.Entities.Base;
 using MongoDB.Driver;
 
 namespace DataProcessor.Infrastructure.Persistence.Repositories;
 
-public abstract class MetricBaseRepository<T>(IMongoDatabase database, string collectionName)
-    : BaseRepository<T>(database, collectionName), IMetricBaseRepository<T>
+public class MetricBaseRepository<T>(IMongoDatabase database)
+    : BaseRepository<T>(database), IMetricBaseRepository<T>
     where T : MetricBaseEntity
 {
     public async Task<IReadOnlyList<T>> GetAllAsync(

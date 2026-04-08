@@ -1,7 +1,3 @@
-using DataProcessor.Application.Models;
-using DataProcessor.Domain.Common;
-using MediatR;
-
 namespace DataProcessor.Application.Queries.GetEnergies;
 
 public record GetEnergiesQuery(

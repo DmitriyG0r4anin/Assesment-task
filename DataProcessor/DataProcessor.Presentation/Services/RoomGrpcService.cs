@@ -1,9 +1,5 @@
 using DataProcessor.Application.Queries.GetRoom;
 using DataProcessor.Application.Queries.GetRooms;
-using DataProcessor.Presentation.Protos;
-using Grpc.Core;
-using Mapster;
-using MediatR;
 
 namespace DataProcessor.Presentation.Services;
 

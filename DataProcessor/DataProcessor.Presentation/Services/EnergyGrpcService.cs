@@ -1,9 +1,5 @@
 using DataProcessor.Application.Queries.GetEnergies;
 using DataProcessor.Application.Queries.GetEnergy;
-using DataProcessor.Presentation.Protos;
-using Grpc.Core;
-using Mapster;
-using MediatR;
 
 namespace DataProcessor.Presentation.Services;
 

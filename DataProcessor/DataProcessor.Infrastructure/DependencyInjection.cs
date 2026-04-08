@@ -1,11 +1,10 @@
-using DataProcessor.Application.Abstractions.Repositories;
-using DataProcessor.Application.Abstractions.Repositories.Base;
 using DataProcessor.Infrastructure.Configuration;
 using DataProcessor.Infrastructure.Messaging;
-using DataProcessor.Infrastructure.Persistence;
 using DataProcessor.Infrastructure.Persistence.Repositories;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
+using MongoDB.Driver;
 
 namespace DataProcessor.Infrastructure;
 
@@ -15,17 +14,19 @@ public static class DependencyInjection
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        // MongoDB
         services.Configure<MongoDbOptions>(
             configuration.GetSection(MongoDbOptions.SectionName));
 
-        services.AddSingleton<MongoDbContext>();
+        services.AddSingleton(sp =>
+        {
+            var options = sp.GetRequiredService<IOptions<MongoDbOptions>>();
+            var client = new MongoClient(options.Value.ConnectionString);
+            return client.GetDatabase(options.Value.DatabaseName);
+        });
 
-        // Repositories
         services.AddScoped<IRoomRepository, RoomRepository>();
-        services.AddScoped(typeof(IMetricBaseRepository<>),typeof(MetricBaseRepository<>));
+        services.AddScoped(typeof(IMetricBaseRepository<>), typeof(MetricBaseRepository<>));
 
-        // Kafka
         services.Configure<KafkaConfig>(
             configuration.GetSection(KafkaConfig.SectionName));
 

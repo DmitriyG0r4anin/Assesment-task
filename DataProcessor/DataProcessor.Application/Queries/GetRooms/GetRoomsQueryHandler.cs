@@ -1,9 +1,3 @@
-using DataProcessor.Application.Abstractions.Repositories;
-using DataProcessor.Application.Models;
-using DataProcessor.Domain.Common;
-using Mapster;
-using MediatR;
-
 namespace DataProcessor.Application.Queries.GetRooms;
 
 public class GetRoomsQueryHandler(IRoomRepository roomRepository)

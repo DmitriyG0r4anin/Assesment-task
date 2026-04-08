@@ -14,8 +14,8 @@ ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
 COPY ["DataProcessor.Presentation/DataProcessor.Presentation.csproj", "DataProcessor.Presentation/"]
 COPY ["DataProcessor.Application/DataProcessor.Application.csproj", "DataProcessor.Application/"]
-COPY ["DataProcessor.Infrastructure/DataProcessor.Infrastructure.csproj", "DataProcessor.Infrastructure/"]
 COPY ["DataProcessor.Domain/DataProcessor.Domain.csproj", "DataProcessor.Domain/"]
+COPY ["DataProcessor.Infrastructure/DataProcessor.Infrastructure.csproj", "DataProcessor.Infrastructure/"]
 RUN dotnet restore "./DataProcessor.Presentation/DataProcessor.Presentation.csproj"
 COPY . .
 WORKDIR "/src/DataProcessor.Presentation"

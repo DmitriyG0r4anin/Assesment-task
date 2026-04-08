@@ -1,10 +1,3 @@
-using DataProcessor.Application.Abstractions.Repositories.Base;
-using DataProcessor.Application.Models;
-using DataProcessor.Domain.Common;
-using DataProcessor.Domain.Entities;
-using Mapster;
-using MediatR;
-
 namespace DataProcessor.Application.Queries.GetMotions;
 
 public class GetMotionsQueryHandler(

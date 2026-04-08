@@ -1,9 +1,5 @@
 using DataProcessor.Application.Queries.GetMotion;
 using DataProcessor.Application.Queries.GetMotions;
-using DataProcessor.Presentation.Protos;
-using Grpc.Core;
-using Mapster;
-using MediatR;
 
 namespace DataProcessor.Presentation.Services;
 
@@ -28,6 +24,8 @@ public class MotionGrpcService(
             RoomId: request.HasRoomId ? request.RoomId : null);
 
         var result = await mediator.Send(query, context.CancellationToken);
+
+        return result.Adapt<GetMotionsResponse>();
 
         if (!result.IsSuccess)
         {
