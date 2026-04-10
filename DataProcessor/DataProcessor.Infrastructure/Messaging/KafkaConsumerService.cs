@@ -65,7 +65,7 @@ public class KafkaConsumerService(
         }
     }
 
-    private async Task ProcessMessageAsync(string messageJson, CancellationToken ct)
+    private async Task ProcessMessageAsync(string messageJson, CancellationToken cancellationToken)
     {
         try
         {
@@ -79,18 +79,24 @@ public class KafkaConsumerService(
             using var scope = scopeFactory.CreateScope();
             var roomRepository = scope.ServiceProvider.GetRequiredService<IRoomRepository>();
 
-            var room = await roomRepository.GetOrCreateAsync(message.Name, ct);
+            logger.LogInformation("Getting room {roomName}", message.Name);
+            var room = await roomRepository.GetByNameAsync(message.Name, cancellationToken);
+            if (room is null)
+            {
+                logger.LogInformation("Room {roomName} not found. Creating new room", message.Name);
+                room = await roomRepository.CreateByNameAsync(message.Name, cancellationToken);
+            }
 
             switch (message.Type)
             {
                 case MetricTypes.AirQuality:
-                    await ProcessAirQualityAsync(scope, message, room.Id, ct);
+                    await ProcessAirQualityAsync(scope, message, room.Id, cancellationToken);
                     break;
                 case MetricTypes.Energy:
-                    await ProcessEnergyAsync(scope, message, room.Id, ct);
+                    await ProcessEnergyAsync(scope, message, room.Id, cancellationToken);
                     break;
                 case MetricTypes.Motion:
-                    await ProcessMotionAsync(scope, message, room.Id, ct);
+                    await ProcessMotionAsync(scope, message, room.Id, cancellationToken);
                     break;
                 default:
                     logger.LogWarning("Unknown message type: {Type}", message.Type);
@@ -106,8 +112,12 @@ public class KafkaConsumerService(
     private async Task ProcessAirQualityAsync(
         IServiceScope scope, KafkaMessage message, string roomId, CancellationToken cancellationToken)
     {
-        var payload = JsonSerializer.Deserialize<AirQualityPayload>(message.Payload.GetRawText());
-        if (payload is null) return;
+        var payload = message.Payload.Deserialize<AirQualityPayload>();
+        if (payload is null)
+        {
+            logger.LogWarning("Failed to deserialize {metric} payload", MetricTypes.AirQuality);
+            return;
+        }
 
         var repository = scope.ServiceProvider.GetRequiredService<IMetricBaseRepository<AirQuality>>();
         var entity = new AirQuality
@@ -119,15 +129,19 @@ public class KafkaConsumerService(
             Timestamp = message.Timestamp
         };
 
+        logger.LogInformation("Saving AirQuality data for room {RoomId}", roomId);
         await repository.InsertAsync(entity, cancellationToken);
-        logger.LogInformation("Saved AirQuality data for room {RoomId}", roomId);
     }
 
     private async Task ProcessEnergyAsync(
         IServiceScope scope, KafkaMessage message, string roomId, CancellationToken ct)
     {
         var payload = JsonSerializer.Deserialize<EnergyPayload>(message.Payload.GetRawText());
-        if (payload is null) return;
+        if (payload is null)
+        {
+            logger.LogWarning("Failed to deserialize {metric} payload", MetricTypes.Energy);
+            return;
+        }
 
         var repository = scope.ServiceProvider.GetRequiredService<IMetricBaseRepository<Energy>>();
         var entity = new Energy
@@ -137,15 +151,19 @@ public class KafkaConsumerService(
             Timestamp = message.Timestamp
         };
 
+        logger.LogInformation("Saving Energy data for room {RoomId}", roomId);
         await repository.InsertAsync(entity, ct);
-        logger.LogInformation("Saved Energy data for room {RoomId}", roomId);
     }
 
     private async Task ProcessMotionAsync(
         IServiceScope scope, KafkaMessage message, string roomId, CancellationToken ct)
     {
         var payload = JsonSerializer.Deserialize<MotionPayload>(message.Payload.GetRawText());
-        if (payload is null) return;
+        if (payload is null)
+        {
+            logger.LogWarning("Failed to deserialize {metric} payload", MetricTypes.Motion);
+            return;
+        }
 
         var repository = scope.ServiceProvider.GetRequiredService<IMetricBaseRepository<Motion>>();
         var entity = new Motion

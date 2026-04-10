@@ -12,12 +12,8 @@ public class RoomRepository(IMongoDatabase database) : BaseRepository<Room>(data
             .FirstOrDefaultAsync(cancellationToken);
     }
 
-    public async Task<Room> GetOrCreateAsync(string name, CancellationToken cancellationToken = default)
+    public async Task<Room> CreateByNameAsync(string name, CancellationToken cancellationToken = default)
     {
-        var existing = await GetByNameAsync(name, cancellationToken);
-        if (existing is not null)
-            return existing;
-
         var room = new Room { Name = name };
         await Collection.InsertOneAsync(room, cancellationToken: cancellationToken);
         return room;
