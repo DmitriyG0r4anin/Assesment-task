@@ -1,5 +1,6 @@
 using DataProcessor.Application.Queries.GetAirQualities;
 using DataProcessor.Application.Queries.GetAirQuality;
+using DataProcessor.Domain.Common;
 
 namespace DataProcessor.Presentation.Services;
 
@@ -48,6 +49,17 @@ public class AirQualityGrpcService(
         ServerCallContext context)
     {
         logger.LogInformation("GetAirQuality called. Id: {Id}", request.AirQualityId);
+
+        if (string.IsNullOrEmpty(request.AirQualityId))
+        {
+            var error = Error.Validation("Id field is empty");
+
+            return new GetAirQualityResponse
+            {
+                Error = error.Adapt<ErrorResponse>()
+            };
+        }
+
 
         var query = new GetAirQualityQuery(AirQualityId: request.AirQualityId);
 

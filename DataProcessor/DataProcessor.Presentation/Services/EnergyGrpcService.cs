@@ -1,5 +1,8 @@
+using DataProcessor.Application.Queries.Energy.GetEnergies;
+using DataProcessor.Application.Queries.Energy.GetEnergy;
 using DataProcessor.Application.Queries.GetEnergies;
 using DataProcessor.Application.Queries.GetEnergy;
+using DataProcessor.Domain.Common;
 
 namespace DataProcessor.Presentation.Services;
 
@@ -48,6 +51,16 @@ public class EnergyGrpcService(
         ServerCallContext context)
     {
         logger.LogInformation("GetEnergy called. Id: {Id}", request.EnergyId);
+
+        if (string.IsNullOrEmpty(request.EnergyId))
+        {
+            var error = Error.Validation("Id field is empty");
+
+            return new GetEnergyResponse
+            {
+                Error = error.Adapt<ErrorResponse>()
+            };
+        }
 
         var query = new GetEnergyQuery(EnergyId: request.EnergyId);
 

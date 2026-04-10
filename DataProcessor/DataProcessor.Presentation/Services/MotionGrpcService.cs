@@ -1,5 +1,6 @@
 using DataProcessor.Application.Queries.GetMotion;
 using DataProcessor.Application.Queries.GetMotions;
+using DataProcessor.Domain.Common;
 
 namespace DataProcessor.Presentation.Services;
 
@@ -50,6 +51,16 @@ public class MotionGrpcService(
         ServerCallContext context)
     {
         logger.LogInformation("GetMotion called. Id: {Id}", request.MotionId);
+
+        if (string.IsNullOrEmpty(request.MotionId))
+        {
+            var error = Error.Validation("Id field is empty");
+
+            return new GetMotionResponse
+            {
+                Error = error.Adapt<ErrorResponse>()
+            };
+        }
 
         var query = new GetMotionQuery(MotionId: request.MotionId);
 

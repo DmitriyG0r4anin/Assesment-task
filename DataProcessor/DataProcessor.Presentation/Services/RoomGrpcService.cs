@@ -1,5 +1,6 @@
 using DataProcessor.Application.Queries.GetRoom;
 using DataProcessor.Application.Queries.GetRooms;
+using DataProcessor.Domain.Common;
 
 namespace DataProcessor.Presentation.Services;
 
@@ -45,6 +46,17 @@ public class RoomGrpcService(
         ServerCallContext context)
     {
         logger.LogInformation("GetRoom called. Id: {Id}", request.RoomId);
+
+        if (string.IsNullOrEmpty(request.RoomId))
+        {
+            var error = Error.Validation("Id field is empty");
+
+            return new GetRoomResponse
+            {
+                Error = error.Adapt<ErrorResponse>()
+            };
+        }
+
 
         var query = new GetRoomQuery(RoomId: request.RoomId);
 

@@ -11,7 +11,7 @@
 
   <ItemGroup>
     <AdditionalProtoImportDirs Include="Protos" />
-    <Protobuf Include="Protos\parameters.proto"  GrpcServices="Server" />
+    <Protobuf Include="Protos\parameters.proto" GrpcServices="Server" />
   </ItemGroup>
 
   <ItemGroup>
