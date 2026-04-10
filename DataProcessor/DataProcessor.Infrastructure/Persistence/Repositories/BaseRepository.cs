@@ -5,7 +5,7 @@ namespace DataProcessor.Infrastructure.Persistence.Repositories;
 
 public class BaseRepository<T>(IMongoDatabase database) : IBaseRepository<T> where T : BaseEntity
 {
-    protected readonly IMongoCollection<T> Collection = database.GetCollection<T>(nameof(T));
+    protected readonly IMongoCollection<T> Collection = database.GetCollection<T>(typeof(T).Name);
 
     public virtual async Task<T?> GetByIdAsync(string id, CancellationToken cancellationToken = default)
     {
@@ -25,7 +25,7 @@ public class BaseRepository<T>(IMongoDatabase database) : IBaseRepository<T> whe
 
     public virtual async Task UpdateAsync(T entity, CancellationToken cancellationToken = default)
     {
-        var idProp = typeof(T).GetProperty("Id") 
+        var idProp = typeof(T).GetProperty("Id")
             ?? throw new InvalidOperationException("Entity must have an Id property.");
 
         var id = idProp.GetValue(entity)?.ToString();
