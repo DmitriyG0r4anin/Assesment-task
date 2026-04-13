@@ -19,6 +19,7 @@ jobs:
         uses: highbyte/sonarscan-dotnet@v2.3.0
         with:
           sonarProjectKey: gh0stf1ghter_Assesment-task_DataProcessor
+          sonarProjectName: gh0stf1ghter_Assesment-task_DataProcessor
           sonarOrganization: gh0stf1ghter
           dotnetBuildArguments: ./DataProcessor --configuration Release
           dotnetTestArguments: ./DataProcessor --no-build --configuration Release --verbosity normal --logger trx --collect:"XPlat Code Coverage" -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=opencover
