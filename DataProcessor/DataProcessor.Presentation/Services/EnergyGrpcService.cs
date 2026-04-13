@@ -1,5 +1,3 @@
-using DataProcessor.Application.Queries.Energy.GetEnergies;
-using DataProcessor.Application.Queries.Energy.GetEnergy;
 using DataProcessor.Application.Queries.GetEnergies;
 using DataProcessor.Application.Queries.GetEnergy;
 using DataProcessor.Domain.Common;
