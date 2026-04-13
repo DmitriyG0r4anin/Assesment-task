@@ -11,6 +11,6 @@ public class GetEnergiesQueryHandler(
         var energies = await energyRepository.GetAllAsync(
             request.RoomId, request.TimestampStart, request.TimestampEnd, cancellationToken);
 
-        return energies.Select(energy => energy.Adapt<EnergyModel>()).ToList();
+        return energies.Adapt<List<EnergyModel>>();
     }
 }

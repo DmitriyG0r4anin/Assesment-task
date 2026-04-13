@@ -11,6 +11,6 @@ public class GetMotionsQueryHandler(
         var motions = await motionRepository.GetAllAsync(
             request.RoomId, request.TimestampStart, request.TimestampEnd, cancellationToken);
 
-        return motions.Select(motion => motion.Adapt<MotionModel>()).ToList();
+        return motions.Adapt<List<MotionModel>>();
     }
 }

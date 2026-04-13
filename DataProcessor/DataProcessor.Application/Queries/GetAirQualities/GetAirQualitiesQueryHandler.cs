@@ -11,6 +11,6 @@ public class GetAirQualitiesQueryHandler(
         var entities = await airQualityRepository.GetAllAsync(
             request.RoomId, request.TimestampStart, request.TimestampEnd, cancellationToken);
 
-        return entities.Select(entity => entity.Adapt<AirQualityModel>()).ToList();
+        return entities.Adapt<List<AirQualityModel>>();
     }
 }

@@ -7,14 +7,8 @@ public class GetRoomsQueryHandler(IRoomRepository roomRepository)
         GetRoomsQuery request,
         CancellationToken cancellationToken)
     {
-        try
-        {
-            var rooms = await roomRepository.GetAllAsync(cancellationToken);
-            return rooms.Select(r => r.Adapt<RoomModel>()).ToList();
-        }
-        catch (Exception)
-        {
-            return Error.InternalError;
-        }
+        var rooms = await roomRepository.GetAllAsync(cancellationToken);
+
+        return rooms.Adapt<List<RoomModel>>();
     }
 }
