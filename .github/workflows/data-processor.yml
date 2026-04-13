@@ -16,7 +16,7 @@ jobs:
           fetch-depth: 0
 
       - name: Sonar Scan
-        uses: highbyte/sonarscan-dotnet@v2.3.0
+        uses: highbyte/sonarscan-dotnet@v2.5.0
         with:
           sonarProjectKey: gh0stf1ghter_Assesment-task_DataProcessor
           sonarProjectName: gh0stf1ghter_Assesment-task_DataProcessor
