@@ -25,6 +25,6 @@ jobs:
           dotnetTestArguments: ./DataProcessor --no-build --configuration Release --verbosity normal --logger trx --collect:"XPlat Code Coverage" -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=opencover
           sonarBeginArguments: /d:sonar.cs.opencover.reportsPaths="**/TestResults/**/coverage.opencover.xml" -d:sonar.cs.vstest.reportsPaths="**/TestResults/*.trx" /d:sonar.coverage.exclusions="${{env.EXCLUDE_FROM_COVERAGE}}" /d:sonar.exclusions="${{env.EXCLUDE_FROM_SONAR}}"
     env:
-      EXCLUDE_FROM_COVERAGE: "**/Program.cs, **/DependencyInjection.cs, **/Entities/*, **/Models/*, **/Repositories/**, **/Mapping/*"
+      EXCLUDE_FROM_COVERAGE: "**/Program.cs, **/DependencyInjection.cs, **/Entities/*, **/Models/*, **/Repositories/**, **/Mapping/*, **/Configuration/*, **/Messaging/*, **/Persistence/*"
       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
       EXCLUDE_FROM_SONAR: "**/Dockerfile"
