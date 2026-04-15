@@ -60,7 +60,6 @@ public class AirQualityGrpcService(
             };
         }
 
-
         var query = new GetAirQualityQuery(AirQualityId: request.AirQualityId);
 
         var result = await mediator.Send(query, context.CancellationToken);

@@ -1,0 +1,81 @@
+namespace DataProcessor.Tests.Application.Queries;
+
+public class GetEnergiesQueryHandlerTests
+{
+    private readonly IFixture _fixture;
+    private readonly IMetricBaseRepository<Energy> _repository;
+    private readonly GetEnergiesQueryHandler _sut;
+
+    public GetEnergiesQueryHandlerTests()
+    {
+        _fixture = new Fixture().Customize(new AutoNSubstituteCustomization());
+        _repository = Substitute.For<IMetricBaseRepository<Energy>>();
+        _sut = new GetEnergiesQueryHandler(_repository);
+    }
+
+    [Fact]
+    public async Task Handle_WithEntities_ReturnsSuccessWithMappedModels()
+    {
+        // Arrange
+        var entities = _fixture.Build<Energy>()
+            .With(x => x.RoomId, _fixture.Create<string>())
+            .CreateMany(3)
+            .ToList();
+
+        var query = new GetEnergiesQuery(
+            _fixture.Create<DateTime>(),
+            _fixture.Create<DateTime>(),
+            _fixture.Create<string>());
+
+        _repository
+            .GetAllAsync(
+                Arg.Any<string?>(),
+                Arg.Any<DateTime?>(),
+                Arg.Any<DateTime?>(),
+                Arg.Any<CancellationToken>())
+            .Returns(entities);
+
+        // Act
+        var result = await _sut.Handle(query, CancellationToken.None);
+
+        // Assert
+        Assert.True(result.IsSuccess);
+        Assert.NotNull(result.Value);
+        Assert.Equal(entities.Count, result.Value.Count);
+        Assert.Equal(
+            entities.Select(e => e.Id),
+            result.Value.Select(m => m.Id));
+        Assert.Equal(
+            entities.Select(e => e.RoomId),
+            result.Value.Select(m => m.RoomId));
+        Assert.Equal(
+            entities.Select(e => e.Amount),
+            result.Value.Select(m => m.Amount));
+        Assert.Equal(
+            entities.Select(e => e.Timestamp),
+            result.Value.Select(m => m.Timestamp));
+    }
+
+    [Fact]
+    public async Task Handle_WithNoEntities_ReturnsSuccessWithEmptyList()
+    {
+        // Arrange
+        var query = new GetEnergiesQuery(null, null, null);
+
+        _repository
+            .GetAllAsync(
+                Arg.Any<string?>(),
+                Arg.Any<DateTime?>(),
+                Arg.Any<DateTime?>(),
+                Arg.Any<CancellationToken>())
+            .Returns(new List<Energy>());
+
+        // Act
+        var result = await _sut.Handle(query, CancellationToken.None);
+
+        // Assert
+        Assert.True(result.IsSuccess);
+        Assert.NotNull(result.Value);
+        Assert.Empty(result.Value);
+    }
+}
