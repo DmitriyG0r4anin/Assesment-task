@@ -51,7 +51,7 @@ public class GetRoomsQueryHandlerTests
 
         _repository
             .GetAllAsync(Arg.Any<CancellationToken>())
-            .Returns(new List<Room>());
+            .Returns([]);
 
         // Act
         var result = await _sut.Handle(query, CancellationToken.None);

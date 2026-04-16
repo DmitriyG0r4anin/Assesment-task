@@ -13,9 +13,12 @@ public class RoomGrpcService(
         GetRoomsRequest request,
         ServerCallContext context)
     {
-        logger.LogInformation("GetRooms called. TimestampStart: {TimestampStart}, TimestampEnd: {TimestampEnd}",
-            request.TimestampStart is not null ? request.TimestampStart.ToString() : "any",
-            request.TimestampEnd is not null ? request.TimestampEnd.ToString() : "any");
+        if (logger.IsEnabled(LogLevel.Information))
+        {
+            logger.LogInformation("GetRooms called. TimestampStart: {TimestampStart}, TimestampEnd: {TimestampEnd}",
+                request.TimestampStart is not null ? request.TimestampStart.ToString() : "any",
+                request.TimestampEnd is not null ? request.TimestampEnd.ToString() : "any");
+        }
 
         var query = new GetRoomsQuery(
             TimestampStart: request.TimestampStart?.ToDateTime(),
@@ -45,7 +48,10 @@ public class RoomGrpcService(
         GetRoomRequest request,
         ServerCallContext context)
     {
-        logger.LogInformation("GetRoom called. Id: {Id}", request.RoomId);
+        if (logger.IsEnabled(LogLevel.Information))
+        {
+            logger.LogInformation("GetRoom called. Id: {Id}", request.RoomId);
+        }
 
         if (string.IsNullOrEmpty(request.RoomId))
         {
@@ -56,7 +62,6 @@ public class RoomGrpcService(
                 Error = error.Adapt<ErrorResponse>()
             };
         }
-
 
         var query = new GetRoomQuery(RoomId: request.RoomId);
 

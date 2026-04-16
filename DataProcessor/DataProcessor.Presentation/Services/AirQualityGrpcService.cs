@@ -13,11 +13,14 @@ public class AirQualityGrpcService(
         GetAirQualitiesRequest request,
         ServerCallContext context)
     {
-        logger.LogInformation(
-            "GetAirQualities called. RoomId: {RoomId}, TimestampStart: {TimestampStart}, TimestampEnd: {TimestampEnd}",
-            request.HasRoomId ? request.RoomId : "all",
-            request.TimestampStart is not null ? request.TimestampStart.ToString() : "any",
-            request.TimestampEnd is not null ? request.TimestampEnd.ToString() : "any");
+        if (logger.IsEnabled(LogLevel.Information))
+        {
+            logger.LogInformation(
+                "GetAirQualities called. RoomId: {RoomId}, TimestampStart: {TimestampStart}, TimestampEnd: {TimestampEnd}",
+                request.HasRoomId ? request.RoomId : "all",
+                request.TimestampStart is not null ? request.TimestampStart.ToString() : "any",
+                request.TimestampEnd is not null ? request.TimestampEnd.ToString() : "any");
+        }
 
         var query = new GetAirQualitiesQuery(
             TimestampStart: request.TimestampStart?.ToDateTime(),
@@ -48,7 +51,10 @@ public class AirQualityGrpcService(
         GetAirQualityRequest request,
         ServerCallContext context)
     {
-        logger.LogInformation("GetAirQuality called. Id: {Id}", request.AirQualityId);
+        if (logger.IsEnabled(LogLevel.Information))
+        {
+            logger.LogInformation("GetAirQuality called. Id: {Id}", request.AirQualityId);
+        }
 
         if (string.IsNullOrEmpty(request.AirQualityId))
         {

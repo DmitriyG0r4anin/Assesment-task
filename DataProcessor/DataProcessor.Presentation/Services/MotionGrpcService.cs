@@ -13,11 +13,14 @@ public class MotionGrpcService(
         GetMotionsRequest request,
         ServerCallContext context)
     {
-        logger.LogInformation(
-            "GetMotions called. RoomId: {RoomId}, TimestampStart: {TimestampStart}, TimestampEnd: {TimestampEnd}",
-            request.HasRoomId ? request.RoomId : "all",
-            request.TimestampStart is not null ? request.TimestampStart.ToString() : "any",
-            request.TimestampEnd is not null ? request.TimestampEnd.ToString() : "any");
+        if (logger.IsEnabled(LogLevel.Information))
+        {
+            logger.LogInformation(
+                "GetMotions called. RoomId: {RoomId}, TimestampStart: {TimestampStart}, TimestampEnd: {TimestampEnd}",
+                request.HasRoomId ? request.RoomId : "all",
+                request.TimestampStart is not null ? request.TimestampStart.ToString() : "any",
+                request.TimestampEnd is not null ? request.TimestampEnd.ToString() : "any");
+        }
 
         var query = new GetMotionsQuery(
             TimestampStart: request.TimestampStart?.ToDateTime(),
@@ -33,7 +36,10 @@ public class MotionGrpcService(
         GetMotionRequest request,
         ServerCallContext context)
     {
-        logger.LogInformation("GetMotion called. Id: {Id}", request.MotionId);
+        if (logger.IsEnabled(LogLevel.Information))
+        {
+            logger.LogInformation("GetMotion called. Id: {Id}", request.MotionId);
+        }
 
         if (string.IsNullOrEmpty(request.MotionId))
         {

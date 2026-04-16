@@ -68,7 +68,7 @@ public class GetEnergiesQueryHandlerTests
                 Arg.Any<DateTime?>(),
                 Arg.Any<DateTime?>(),
                 Arg.Any<CancellationToken>())
-            .Returns(new List<Energy>());
+            .Returns([]);
 
         // Act
         var result = await _sut.Handle(query, CancellationToken.None);

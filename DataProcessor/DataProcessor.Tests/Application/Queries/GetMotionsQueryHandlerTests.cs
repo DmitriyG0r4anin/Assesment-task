@@ -68,7 +68,7 @@ public class GetMotionsQueryHandlerTests
                 Arg.Any<DateTime?>(),
                 Arg.Any<DateTime?>(),
                 Arg.Any<CancellationToken>())
-            .Returns(new List<Motion>());
+            .Returns([]);
 
         // Act
         var result = await _sut.Handle(query, CancellationToken.None);

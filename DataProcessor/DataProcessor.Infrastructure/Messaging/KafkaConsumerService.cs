@@ -19,9 +19,12 @@ public class KafkaConsumerService(
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        logger.LogInformation(
-            "Kafka consumer starting. Brokers: {Brokers}, Topic: {Topic}, Group: {GroupId}",
-            _settings.Brokers, _settings.Topic, _settings.GroupId);
+        if (logger.IsEnabled(LogLevel.Information))
+        {
+            logger.LogInformation(
+                "Kafka consumer starting. Brokers: {Brokers}, Topic: {Topic}, Group: {GroupId}",
+                _settings.Brokers, _settings.Topic, _settings.GroupId);
+        }
 
         var config = new ConsumerConfig
         {
@@ -45,7 +48,10 @@ public class KafkaConsumerService(
                     if (result?.Message?.Value is null)
                         continue;
 
-                    logger.LogInformation("Received Kafka message: {Message}", result.Message.Value);
+                    if (logger.IsEnabled(LogLevel.Information))
+                    {
+                        logger.LogInformation("Received Kafka message: {Message}", result.Message.Value);
+                    }
 
                     await ProcessMessageAsync(result.Message.Value, stoppingToken);
                 }
@@ -79,11 +85,17 @@ public class KafkaConsumerService(
             using var scope = scopeFactory.CreateScope();
             var roomRepository = scope.ServiceProvider.GetRequiredService<IRoomRepository>();
 
-            logger.LogInformation("Getting room {roomName}", message.Name);
+            if (logger.IsEnabled(LogLevel.Information))
+            {
+                logger.LogInformation("Getting room {RoomName}", message.Name);
+            }
             var room = await roomRepository.GetByNameAsync(message.Name, cancellationToken);
             if (room is null)
             {
-                logger.LogInformation("Room {roomName} not found. Creating new room", message.Name);
+                if (logger.IsEnabled(LogLevel.Information))
+                {
+                    logger.LogInformation("Room {RoomName} not found. Creating new room", message.Name);
+                }
                 room = await roomRepository.CreateByNameAsync(message.Name, cancellationToken);
             }
 
@@ -115,7 +127,7 @@ public class KafkaConsumerService(
         var payload = message.Payload.Deserialize<AirQualityPayload>();
         if (payload is null)
         {
-            logger.LogWarning("Failed to deserialize {metric} payload", MetricTypes.AirQuality);
+            logger.LogWarning("Failed to deserialize {Metric} payload", MetricTypes.AirQuality);
             return;
         }
 
@@ -129,7 +141,10 @@ public class KafkaConsumerService(
             Timestamp = message.Timestamp
         };
 
-        logger.LogInformation("Saving AirQuality data for room {RoomId}", roomId);
+        if (logger.IsEnabled(LogLevel.Information))
+        {
+            logger.LogInformation("Saving AirQuality data for room {RoomId}", roomId);
+        }
         await repository.InsertAsync(entity, cancellationToken);
     }
 
@@ -139,7 +154,7 @@ public class KafkaConsumerService(
         var payload = JsonSerializer.Deserialize<EnergyPayload>(message.Payload.GetRawText());
         if (payload is null)
         {
-            logger.LogWarning("Failed to deserialize {metric} payload", MetricTypes.Energy);
+            logger.LogWarning("Failed to deserialize {Metric} payload", MetricTypes.Energy);
             return;
         }
 
@@ -151,7 +166,10 @@ public class KafkaConsumerService(
             Timestamp = message.Timestamp
         };
 
-        logger.LogInformation("Saving Energy data for room {RoomId}", roomId);
+        if (logger.IsEnabled(LogLevel.Information))
+        {
+            logger.LogInformation("Saving Energy data for room {RoomId}", roomId);
+        }
         await repository.InsertAsync(entity, ct);
     }
 
@@ -161,7 +179,7 @@ public class KafkaConsumerService(
         var payload = JsonSerializer.Deserialize<MotionPayload>(message.Payload.GetRawText());
         if (payload is null)
         {
-            logger.LogWarning("Failed to deserialize {metric} payload", MetricTypes.Motion);
+            logger.LogWarning("Failed to deserialize {Metric} payload", MetricTypes.Motion);
             return;
         }
 
@@ -174,6 +192,9 @@ public class KafkaConsumerService(
         };
 
         await repository.InsertAsync(entity, ct);
-        logger.LogInformation("Saved Motion data for room {RoomId}", roomId);
+        if (logger.IsEnabled(LogLevel.Information))
+        {
+            logger.LogInformation("Saved Motion data for room {RoomId}", roomId);
+        }
     }
 }

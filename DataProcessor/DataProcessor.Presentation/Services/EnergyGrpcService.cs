@@ -13,11 +13,14 @@ public class EnergyGrpcService(
         GetEnergiesRequest request,
         ServerCallContext context)
     {
-        logger.LogInformation(
-            "GetEnergies called. RoomId: {RoomId}, TimestampStart: {TimestampStart}, TimestampEnd: {TimestampEnd}",
-            request.HasRoomId ? request.RoomId : "all",
-            request.TimestampStart is not null ? request.TimestampStart.ToString() : "any",
-            request.TimestampEnd is not null ? request.TimestampEnd.ToString() : "any");
+        if (logger.IsEnabled(LogLevel.Information))
+        {
+            logger.LogInformation(
+                "GetEnergies called. RoomId: {RoomId}, TimestampStart: {TimestampStart}, TimestampEnd: {TimestampEnd}",
+                request.HasRoomId ? request.RoomId : "all",
+                request.TimestampStart is not null ? request.TimestampStart.ToString() : "any",
+                request.TimestampEnd is not null ? request.TimestampEnd.ToString() : "any");
+        }
 
         var query = new GetEnergiesQuery(
             TimestampStart: request.TimestampStart?.ToDateTime(),
@@ -48,7 +51,10 @@ public class EnergyGrpcService(
         GetEnergyRequest request,
         ServerCallContext context)
     {
-        logger.LogInformation("GetEnergy called. Id: {Id}", request.EnergyId);
+        if (logger.IsEnabled(LogLevel.Information))
+        {
+            logger.LogInformation("GetEnergy called. Id: {Id}", request.EnergyId);
+        }
 
         if (string.IsNullOrEmpty(request.EnergyId))
         {
