@@ -1,0 +1,27 @@
+global using AutoFixture;
+global using AutoFixture.AutoNSubstitute;
+global using NSubstitute;
+
+global using DataProcessor.Application.Abstractions.Repositories;
+global using DataProcessor.Application.Abstractions.Repositories.Base;
+global using DataProcessor.Application.Models;
+global using DataProcessor.Application.Queries.GetAirQualities;
+global using DataProcessor.Application.Queries.GetAirQuality;
+global using DataProcessor.Application.Queries.GetEnergies;
+global using DataProcessor.Application.Queries.GetEnergy;
+global using DataProcessor.Application.Queries.GetMotion;
+global using DataProcessor.Application.Queries.GetMotions;
+global using DataProcessor.Application.Queries.GetRoom;
+global using DataProcessor.Application.Queries.GetRooms;
+
+global using DataProcessor.Domain.Common;
+global using DataProcessor.Domain.Entities;
+
+global using DataProcessor.Presentation.Mapping;
+global using DataProcessor.Presentation.Protos;
+global using DataProcessor.Presentation.Services;
+
+global using Grpc.Core;
+global using Mapster;
+global using MediatR;
+global using Microsoft.Extensions.Logging;
