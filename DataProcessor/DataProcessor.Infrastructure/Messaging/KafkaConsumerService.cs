@@ -37,87 +37,81 @@ public class KafkaConsumerService(
         using var consumer = new ConsumerBuilder<Ignore, string>(config).Build();
         consumer.Subscribe(_settings.Topic);
 
-        try
+        while (!stoppingToken.IsCancellationRequested)
         {
-            while (!stoppingToken.IsCancellationRequested)
+            try
             {
-                try
+                var result = consumer.Consume(stoppingToken);
+
+                if (result?.Message?.Value is null)
+                    continue;
+
+                if (logger.IsEnabled(LogLevel.Information))
                 {
-                    var result = consumer.Consume(stoppingToken);
-
-                    if (result?.Message?.Value is null)
-                        continue;
-
-                    if (logger.IsEnabled(LogLevel.Information))
-                    {
-                        logger.LogInformation("Received Kafka message: {Message}", result.Message.Value);
-                    }
-
-                    await ProcessMessageAsync(result.Message.Value, stoppingToken);
+                    logger.LogInformation("Received Kafka message: {Message}", result.Message.Value);
                 }
-                catch (ConsumeException ex)
-                {
-                    logger.LogError(ex, "Error consuming Kafka message");
-                }
+
+                await ProcessMessageAsync(result.Message.Value, stoppingToken);
+            }
+            catch (ConsumeException ex)
+            {
+                logger.LogError(ex, "Error consuming Kafka message");
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Unexpected error while processing Kafka message");
             }
         }
-        catch (OperationCanceledException)
-        {
-            logger.LogInformation("Kafka consumer stopping");
-        }
-        finally
-        {
-            consumer.Close();
-        }
+        consumer.Close();
     }
 
     private async Task ProcessMessageAsync(string messageJson, CancellationToken cancellationToken)
     {
-        try
+        var message = JsonSerializer.Deserialize<KafkaMessage>(messageJson);
+        if (message is null)
         {
-            var message = JsonSerializer.Deserialize<KafkaMessage>(messageJson);
-            if (message is null)
+            if (logger.IsEnabled(LogLevel.Warning))
             {
                 logger.LogWarning("Failed to deserialize Kafka message: {Message}", messageJson);
-                return;
             }
+            return;
+        }
 
-            using var scope = scopeFactory.CreateScope();
-            var roomRepository = scope.ServiceProvider.GetRequiredService<IRoomRepository>();
+        using var scope = scopeFactory.CreateScope();
+        var roomRepository = scope.ServiceProvider.GetRequiredService<IRoomRepository>();
 
+        if (logger.IsEnabled(LogLevel.Information))
+        {
+            logger.LogInformation("Getting room {RoomName}", message.Name);
+        }
+
+        var room = await roomRepository.GetByNameAsync(message.Name, cancellationToken);
+        if (room is null)
+        {
             if (logger.IsEnabled(LogLevel.Information))
             {
-                logger.LogInformation("Getting room {RoomName}", message.Name);
+                logger.LogInformation("Room {RoomName} not found. Creating new room", message.Name);
             }
-            var room = await roomRepository.GetByNameAsync(message.Name, cancellationToken);
-            if (room is null)
-            {
-                if (logger.IsEnabled(LogLevel.Information))
-                {
-                    logger.LogInformation("Room {RoomName} not found. Creating new room", message.Name);
-                }
-                room = await roomRepository.CreateByNameAsync(message.Name, cancellationToken);
-            }
-
-            switch (message.Type)
-            {
-                case MetricTypes.AirQuality:
-                    await ProcessAirQualityAsync(scope, message, room.Id, cancellationToken);
-                    break;
-                case MetricTypes.Energy:
-                    await ProcessEnergyAsync(scope, message, room.Id, cancellationToken);
-                    break;
-                case MetricTypes.Motion:
-                    await ProcessMotionAsync(scope, message, room.Id, cancellationToken);
-                    break;
-                default:
-                    logger.LogWarning("Unknown message type: {Type}", message.Type);
-                    break;
-            }
+            room = await roomRepository.CreateByNameAsync(message.Name, cancellationToken);
         }
-        catch (Exception ex)
+
+        switch (message.Type)
         {
-            logger.LogError(ex, "Error processing Kafka message");
+            case MetricTypes.AirQuality:
+                await ProcessAirQualityAsync(scope, message, room.Id, cancellationToken);
+                break;
+            case MetricTypes.Energy:
+                await ProcessEnergyAsync(scope, message, room.Id, cancellationToken);
+                break;
+            case MetricTypes.Motion:
+                await ProcessMotionAsync(scope, message, room.Id, cancellationToken);
+                break;
+            default:
+                if (logger.IsEnabled(LogLevel.Warning))
+                {
+                    logger.LogWarning("Unknown message type: {Type}", message.Type);
+                }
+                break;
         }
     }
 
@@ -127,7 +121,7 @@ public class KafkaConsumerService(
         var payload = message.Payload.Deserialize<AirQualityPayload>();
         if (payload is null)
         {
-            logger.LogWarning("Failed to deserialize {Metric} payload", MetricTypes.AirQuality);
+            LogMetricDeserializationFailure(MetricTypes.AirQuality);
             return;
         }
 
@@ -154,7 +148,7 @@ public class KafkaConsumerService(
         var payload = JsonSerializer.Deserialize<EnergyPayload>(message.Payload.GetRawText());
         if (payload is null)
         {
-            logger.LogWarning("Failed to deserialize {Metric} payload", MetricTypes.Energy);
+            LogMetricDeserializationFailure(MetricTypes.Energy);
             return;
         }
 
@@ -179,7 +173,7 @@ public class KafkaConsumerService(
         var payload = JsonSerializer.Deserialize<MotionPayload>(message.Payload.GetRawText());
         if (payload is null)
         {
-            logger.LogWarning("Failed to deserialize {Metric} payload", MetricTypes.Motion);
+            LogMetricDeserializationFailure(MetricTypes.Motion);
             return;
         }
 
@@ -195,6 +189,14 @@ public class KafkaConsumerService(
         if (logger.IsEnabled(LogLevel.Information))
         {
             logger.LogInformation("Saved Motion data for room {RoomId}", roomId);
+        }
+    }
+
+    private void LogMetricDeserializationFailure(string metricType)
+    {
+        if (logger.IsEnabled(LogLevel.Warning))
+        {
+            logger.LogWarning("Failed to deserialize {Metric} payload", metricType);
         }
     }
 }

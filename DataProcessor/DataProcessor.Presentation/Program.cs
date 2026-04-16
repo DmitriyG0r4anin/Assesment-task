@@ -25,4 +25,4 @@ app.MapGrpcService<RoomGrpcService>();
 
 app.MapGet("/", () => "DataProcessor gRPC service is running. Use a gRPC client to communicate.");
 
-app.Run();
+await app.RunAsync();
