@@ -29,18 +29,6 @@ public class EnergyGrpcService(
 
         var result = await mediator.Send(query, context.CancellationToken);
 
-        if (!result.IsSuccess)
-        {
-            return new GetEnergiesResponse
-            {
-                Error = new ErrorResponse
-                {
-                    Code = result.Error.Code,
-                    Message = result.Error.Message
-                }
-            };
-        }
-
         var list = new EnergyList();
         list.Energies.AddRange(result.Value!.Select(m => m.Adapt<EnergyMessage>()));
 

@@ -29,18 +29,6 @@ public class AirQualityGrpcService(
 
         var result = await mediator.Send(query, context.CancellationToken);
 
-        if (!result.IsSuccess)
-        {
-            return new GetAirQualitiesResponse
-            {
-                Error = new ErrorResponse
-                {
-                    Code = result.Error.Code,
-                    Message = result.Error.Message
-                }
-            };
-        }
-
         var list = new AirQualityList();
         list.AirQualities.AddRange(result.Value!.Select(m => m.Adapt<AirQualityMessage>()));
 

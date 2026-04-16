@@ -26,18 +26,6 @@ public class RoomGrpcService(
 
         var result = await mediator.Send(query, context.CancellationToken);
 
-        if (!result.IsSuccess)
-        {
-            return new GetRoomsResponse
-            {
-                Error = new ErrorResponse
-                {
-                    Code = result.Error.Code,
-                    Message = result.Error.Message
-                }
-            };
-        }
-
         var list = new RoomList();
         list.Rooms.AddRange(result.Value!.Select(m => m.Adapt<RoomMessage>()));
 

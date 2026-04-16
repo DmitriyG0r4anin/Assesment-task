@@ -7,5 +7,4 @@ public record Error(int Code, string Message)
     public static readonly Error InternalError = new(500, "An internal error occurred.");
 
     public static Error Validation(string message) => new(400, message);
-    public static Error Custom(int code, string message) => new(code, message);
 }
