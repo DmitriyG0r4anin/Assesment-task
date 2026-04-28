@@ -1,0 +1,240 @@
+// ============================================================================
+// parameters.proto — DataProcessor gRPC service definitions
+// ============================================================================
+//
+// This file is the Rust-client copy of the DataProcessor proto contract.
+// It is compiled at build time by tonic_build (see build.rs) into a Rust
+// source file that is placed in Cargo's OUT_DIR.  The generated code is then
+// pulled into the crate via:
+//
+//   pub mod proto {
+//       tonic::include_proto!("parameters");   // "parameters" = package name
+//   }
+//
+// The `package parameters;` declaration below controls the name of the
+// generated Rust module and is used as the argument to include_proto!.
+//
+// .NET parallel
+// ─────────────
+// In C# / Grpc.Tools the .proto file is the same source of truth.  Here we
+// keep a dedicated copy for the Rust gateway so the two projects can evolve
+// independently if needed, while staying in sync with the DataProcessor
+// service contract.
+//
+// google/protobuf/timestamp.proto
+// ────────────────────────────────
+// The Timestamp well-known type maps to `prost_types::Timestamp` in Rust
+// (provided by the `prost-types` crate).  Helper functions in grpc_client.rs
+// convert between `prost_types::Timestamp` and `chrono::DateTime<Utc>`.
+//
+// oneof result { data … | error … }
+// ──────────────────────────────────
+// Every response uses a `oneof` discriminated union to carry either a success
+// payload or an `ErrorResponse`.  prost generates a sub-module for each
+// response message that contains a `Result` enum, e.g.:
+//
+//   mod get_air_qualities_response {
+//       pub enum Result {
+//           Data(super::AirQualityList),
+//           Error(super::ErrorResponse),
+//       }
+//   }
+//
+// Callers match on `response.result` to handle success / error branches.
+// ============================================================================
+
+syntax = "proto3";
+
+import "google/protobuf/timestamp.proto";
+
+package parameters;
+
+// ── Air Quality ──────────────────────────────────────────────────────────────
+
+service AirQualityService {
+  // Returns a filtered list of air-quality readings.
+  rpc GetAirQualities (GetAirQualitiesRequest) returns (GetAirQualitiesResponse);
+  // Returns a single air-quality reading by its ID.
+  rpc GetAirQuality   (GetAirQualityRequest)   returns (GetAirQualityResponse);
+}
+
+// A single air-quality sensor reading.
+message AirQualityMessage {
+  string                    id        = 1; // Unique record ID (UUID string)
+  string                    room_id   = 2; // ID of the room the sensor is in
+  google.protobuf.Timestamp timestamp = 3; // When the reading was taken
+  int32                     pm25      = 4; // Fine-particulate-matter level
+  int32                     co2       = 5; // CO₂ concentration (ppm)
+  int32                     humidity  = 6; // Relative humidity (%)
+}
+
+// All filter fields are optional; omitting them returns all records.
+message GetAirQualitiesRequest {
+  optional google.protobuf.Timestamp timestamp_start = 1; // Inclusive lower bound
+  optional google.protobuf.Timestamp timestamp_end   = 2; // Inclusive upper bound
+  optional string                    room_id         = 3; // Filter by room
+}
+
+message GetAirQualityRequest {
+  string air_quality_id = 1; // ID of the record to fetch
+}
+
+message AirQualityList {
+  repeated AirQualityMessage air_qualities = 1;
+}
+
+message GetAirQualitiesResponse {
+  oneof result {
+    AirQualityList data  = 1;
+    ErrorResponse  error = 2;
+  }
+}
+
+message GetAirQualityResponse {
+  oneof result {
+    AirQualityMessage data  = 1;
+    ErrorResponse     error = 2;
+  }
+}
+
+// ── Energy ───────────────────────────────────────────────────────────────────
+
+service EnergyService {
+  // Returns a filtered list of energy-consumption readings.
+  rpc GetEnergies (GetEnergiesRequest) returns (GetEnergiesResponse);
+  // Returns a single energy reading by its ID.
+  rpc GetEnergy   (GetEnergyRequest)   returns (GetEnergyResponse);
+}
+
+// A single energy-consumption reading.
+message EnergyMessage {
+  string                    id        = 1; // Unique record ID (UUID string)
+  string                    room_id   = 2; // ID of the room
+  google.protobuf.Timestamp timestamp = 3; // When the reading was taken
+  double                    amount    = 4; // Energy consumed (e.g. kWh); maps to f64 in Rust
+}
+
+message GetEnergiesRequest {
+  optional google.protobuf.Timestamp timestamp_start = 1;
+  optional google.protobuf.Timestamp timestamp_end   = 2;
+  optional string                    room_id         = 3;
+}
+
+message GetEnergyRequest {
+  string energy_id = 1;
+}
+
+message EnergyList {
+  repeated EnergyMessage energies = 1;
+}
+
+message GetEnergiesResponse {
+  oneof result {
+    EnergyList    data  = 1;
+    ErrorResponse error = 2;
+  }
+}
+
+message GetEnergyResponse {
+  oneof result {
+    EnergyMessage data  = 1;
+    ErrorResponse error = 2;
+  }
+}
+
+// ── Motion ───────────────────────────────────────────────────────────────────
+
+service MotionService {
+  // Returns a filtered list of motion-detection events.
+  rpc GetMotions (GetMotionsRequest) returns (GetMotionsResponse);
+  // Returns a single motion event by its ID.
+  rpc GetMotion  (GetMotionRequest)  returns (GetMotionResponse);
+}
+
+// A single motion-detection event.
+message MotionMessage {
+  string                    id          = 1; // Unique record ID (UUID string)
+  string                    room_id     = 2; // ID of the room
+  google.protobuf.Timestamp timestamp   = 3; // When the event was recorded
+  bool                      is_detected = 4; // true = motion detected; maps to bool in Rust
+}
+
+message GetMotionsRequest {
+  optional google.protobuf.Timestamp timestamp_start = 1;
+  optional google.protobuf.Timestamp timestamp_end   = 2;
+  optional string                    room_id         = 3;
+}
+
+message GetMotionRequest {
+  string motion_id = 1;
+}
+
+message MotionList {
+  repeated MotionMessage motions = 1;
+}
+
+message GetMotionsResponse {
+  oneof result {
+    MotionList    data  = 1;
+    ErrorResponse error = 2;
+  }
+}
+
+message GetMotionResponse {
+  oneof result {
+    MotionMessage data  = 1;
+    ErrorResponse error = 2;
+  }
+}
+
+// ── Room ─────────────────────────────────────────────────────────────────────
+
+service RoomService {
+  // Returns rooms that had activity in the given time range.
+  rpc GetRooms (GetRoomsRequest) returns (GetRoomsResponse);
+  // Returns a single room by its ID.
+  rpc GetRoom  (GetRoomRequest)  returns (GetRoomResponse);
+}
+
+// Room metadata.
+message RoomMessage {
+  string id   = 1; // Unique room ID (UUID string)
+  string name = 2; // Human-readable room name
+}
+
+// Note: no room_id filter — use GetRoom for a specific room.
+message GetRoomsRequest {
+  optional google.protobuf.Timestamp timestamp_start = 1;
+  optional google.protobuf.Timestamp timestamp_end   = 2;
+}
+
+message GetRoomRequest {
+  string room_id = 1;
+}
+
+message RoomList {
+  repeated RoomMessage rooms = 1;
+}
+
+message GetRoomsResponse {
+  oneof result {
+    RoomList      data  = 1;
+    ErrorResponse error = 2;
+  }
+}
+
+message GetRoomResponse {
+  oneof result {
+    RoomMessage   data  = 1;
+    ErrorResponse error = 2;
+  }
+}
+
+// ── Shared ───────────────────────────────────────────────────────────────────
+
+// Returned in the `error` branch of every response's `oneof result`.
+// Maps to a Rust struct with fields `code: i32` and `message: String`.
+message ErrorResponse {
+  int32  code    = 1; // Application-defined error code
+  string message = 2; // Human-readable description
+}

@@ -1,0 +1,24 @@
+[package]
+name = "graphql-api-gateway"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "graphql-api-gateway"
+path = "src/main.rs"
+
+[dependencies]
+async-graphql = { version = "7", features = ["chrono"] }
+async-graphql-axum = "7"
+axum = "0.8"
+chrono = { version = "0.4", features = ["serde"] }
+dotenvy = "0.15"
+prost = "0.13"
+prost-types = "0.13"
+serde = { version = "1", features = ["derive"] }
+tokio = { version = "1", features = ["full"] }
+tonic = "0.12"
+tower-http = { version = "0.6", features = ["cors"] }
+
+[build-dependencies]
+tonic-build = "0.12"

@@ -95,7 +95,19 @@ services:
       - broker
       - mongodb
 
-  # graphql-api-gateway:
+  graphql-api-gateway:
+    hostname: graphql-api-gateway
+    container_name: graphql-api-gateway
+    build:
+      context: ./GraphQLAPIGateway
+      dockerfile: Dockerfile
+    ports:
+      - "4000:4000"
+    environment:
+      GRPC_ENDPOINT: http://dataprocessor:8090
+    depends_on:
+      - dataprocessor
+    restart: unless-stopped
 
   # notification:
 

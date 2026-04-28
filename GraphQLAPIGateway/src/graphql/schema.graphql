@@ -1,0 +1,128 @@
+schema {
+  query: QueryRoot
+}
+
+scalar DateTime
+
+input SensorFilter {
+  timestampStart: DateTime
+  timestampEnd: DateTime
+  roomId: String
+}
+
+input MotionFilter {
+  timestampStart: DateTime
+  timestampEnd: DateTime
+  roomId: String
+  isDetected: Boolean
+}
+
+input RoomFilter {
+  timestampStart: DateTime
+  timestampEnd: DateTime
+}
+
+input PaginationInput {
+  offset: Int
+  limit: Int
+}
+
+type AirQuality {
+  id: String!
+  roomId: String!
+  timestamp: DateTime!
+  pm25: Int!
+  co2: Int!
+  humidity: Int!
+}
+
+type AirQualityConnection {
+  items: [AirQuality!]!
+  totalCount: Int!
+  hasNextPage: Boolean!
+}
+
+type Energy {
+  id: String!
+  roomId: String!
+  timestamp: DateTime!
+  amount: Float!
+}
+
+type EnergyConnection {
+  items: [Energy!]!
+  totalCount: Int!
+  hasNextPage: Boolean!
+}
+
+type Motion {
+  id: String!
+  roomId: String!
+  timestamp: DateTime!
+  isDetected: Boolean!
+}
+
+type MotionConnection {
+  items: [Motion!]!
+  totalCount: Int!
+  hasNextPage: Boolean!
+}
+
+type Room {
+  id: String!
+  name: String!
+}
+
+type RoomConnection {
+  items: [Room!]!
+  totalCount: Int!
+  hasNextPage: Boolean!
+}
+
+type RoomAggregation {
+  roomId: String!
+  roomName: String
+  avgCo2: Float
+  avgPm25: Float
+  avgHumidity: Float
+  avgEnergy: Float
+  motionCount: Int!
+  totalCount: Int!
+}
+
+type TimeAggregation {
+  timestamp: DateTime!
+  avgCo2: Float
+  avgPm25: Float
+  avgHumidity: Float
+  avgEnergy: Float
+  motionCount: Int!
+  totalCount: Int!
+}
+
+type QueryRoot {
+  airQualities(filter: SensorFilter, pagination: PaginationInput): AirQualityConnection!
+  airQuality(id: String!): AirQuality!
+
+  energies(filter: SensorFilter, pagination: PaginationInput): EnergyConnection!
+  energy(id: String!): Energy!
+
+  motions(filter: MotionFilter, pagination: PaginationInput): MotionConnection!
+  motion(id: String!): Motion!
+
+  rooms(filter: RoomFilter, pagination: PaginationInput): RoomConnection!
+  room(id: String!): Room!
+
+  aggregateByRoom(
+    roomId: String
+    startTime: DateTime
+    endTime: DateTime
+  ): [RoomAggregation!]!
+
+  aggregateByTime(
+    roomId: String
+    startTime: DateTime
+    endTime: DateTime
+    intervalMinutes: Int
+  ): [TimeAggregation!]!
+}
