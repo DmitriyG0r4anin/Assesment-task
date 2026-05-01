@@ -70,6 +70,13 @@ use chrono::{DateTime, Utc};
 
 use crate::grpc_client::{AirQualityDto, EnergyDto, GrpcClient, MotionDto, RoomDto};
 
+/// Maps a gRPC error to a GraphQL error and records structured context for logs.
+#[inline]
+fn gql_grpc_err(context: &'static str, e: impl std::fmt::Display) -> async_graphql::Error {
+    tracing::error!(context, error = %e, "gRPC call failed");
+    async_graphql::Error::new(e.to_string())
+}
+
 // ============================================================================
 // 1. Input types
 // ============================================================================
@@ -470,7 +477,7 @@ impl QueryRoot {
                 filter.room_id,
             )
             .await
-            .map_err(|e| async_graphql::Error::new(e.to_string()))?;
+            .map_err(|e| gql_grpc_err("airQualities", e))?;
 
         let items: Vec<AirQuality> = dtos.into_iter().map(air_quality_from_dto).collect();
         Ok(paginate_air_quality(items, &pagination))
@@ -490,7 +497,7 @@ impl QueryRoot {
             .get_air_quality(id)
             .await
             .map(air_quality_from_dto)
-            .map_err(|e| async_graphql::Error::new(e.to_string()))
+            .map_err(|e| gql_grpc_err("airQuality", e))
     }
 
     // =========================================================================
@@ -515,7 +522,7 @@ impl QueryRoot {
                 filter.room_id,
             )
             .await
-            .map_err(|e| async_graphql::Error::new(e.to_string()))?;
+            .map_err(|e| gql_grpc_err("energies", e))?;
 
         let items: Vec<Energy> = dtos.into_iter().map(energy_from_dto).collect();
         Ok(paginate_energy(items, &pagination))
@@ -533,7 +540,7 @@ impl QueryRoot {
             .get_energy(id)
             .await
             .map(energy_from_dto)
-            .map_err(|e| async_graphql::Error::new(e.to_string()))
+            .map_err(|e| gql_grpc_err("energy", e))
     }
 
     // =========================================================================
@@ -562,7 +569,7 @@ impl QueryRoot {
                 filter.room_id,
             )
             .await
-            .map_err(|e| async_graphql::Error::new(e.to_string()))?;
+            .map_err(|e| gql_grpc_err("motions", e))?;
 
         // Convert to GraphQL type first, then apply the client-side
         // `is_detected` filter that the server doesn't support natively.
@@ -587,7 +594,7 @@ impl QueryRoot {
             .get_motion(id)
             .await
             .map(motion_from_dto)
-            .map_err(|e| async_graphql::Error::new(e.to_string()))
+            .map_err(|e| gql_grpc_err("motion", e))
     }
 
     // =========================================================================
@@ -611,7 +618,7 @@ impl QueryRoot {
         let dtos = client
             .get_rooms(filter.timestamp_start, filter.timestamp_end)
             .await
-            .map_err(|e| async_graphql::Error::new(e.to_string()))?;
+            .map_err(|e| gql_grpc_err("rooms", e))?;
 
         let items: Vec<Room> = dtos.into_iter().map(room_from_dto).collect();
         Ok(paginate_room(items, &pagination))
@@ -629,7 +636,7 @@ impl QueryRoot {
             .get_room(id)
             .await
             .map(room_from_dto)
-            .map_err(|e| async_graphql::Error::new(e.to_string()))
+            .map_err(|e| gql_grpc_err("room", e))
     }
 
     // =========================================================================
@@ -684,10 +691,11 @@ impl QueryRoot {
         // Convert each Result, propagating errors as GraphQL errors.
         // `.map_err(...)` is analogous to wrapping a caught exception into a
         // domain error in C#.
-        let air_qualities = aq_result.map_err(|e| async_graphql::Error::new(e.to_string()))?;
-        let energies = en_result.map_err(|e| async_graphql::Error::new(e.to_string()))?;
-        let motions = mo_result.map_err(|e| async_graphql::Error::new(e.to_string()))?;
-        let rooms = room_result.map_err(|e| async_graphql::Error::new(e.to_string()))?;
+        let air_qualities =
+            aq_result.map_err(|e| gql_grpc_err("aggregateByRoom → GetAirQualities", e))?;
+        let energies = en_result.map_err(|e| gql_grpc_err("aggregateByRoom → GetEnergies", e))?;
+        let motions = mo_result.map_err(|e| gql_grpc_err("aggregateByRoom → GetMotions", e))?;
+        let rooms = room_result.map_err(|e| gql_grpc_err("aggregateByRoom → GetRooms", e))?;
 
         // Build a lookup map: room_id → room_name for O(1) joins later.
         // .NET parallel: rooms.ToDictionary(r => r.Id, r => r.Name)
@@ -814,9 +822,10 @@ impl QueryRoot {
             client.get_motions(start_time, end_time, room_id),
         );
 
-        let air_qualities = aq_result.map_err(|e| async_graphql::Error::new(e.to_string()))?;
-        let energies = en_result.map_err(|e| async_graphql::Error::new(e.to_string()))?;
-        let motions = mo_result.map_err(|e| async_graphql::Error::new(e.to_string()))?;
+        let air_qualities =
+            aq_result.map_err(|e| gql_grpc_err("aggregateByTime → GetAirQualities", e))?;
+        let energies = en_result.map_err(|e| gql_grpc_err("aggregateByTime → GetEnergies", e))?;
+        let motions = mo_result.map_err(|e| gql_grpc_err("aggregateByTime → GetMotions", e))?;
 
         // Bucket width in seconds.  `.max(1)` prevents division by zero.
         // .NET parallel: TimeSpan.FromMinutes(intervalMinutes)

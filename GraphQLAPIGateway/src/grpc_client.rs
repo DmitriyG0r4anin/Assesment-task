@@ -59,7 +59,8 @@
 // ============================================================================
 
 use chrono::{DateTime, Utc};
-use tonic::transport::Channel;
+use tonic::transport::{Channel, ClientTlsConfig};
+use tracing::instrument;
 
 // Pull in every type generated from the proto file.
 // The string "parameters" matches the `package parameters;` declaration in
@@ -80,7 +81,9 @@ use tonic::transport::Channel;
 // Example mental mapping:
 // - C#: var channel = GrpcChannel.ForAddress(url);
 //       var client = new AirQualityService.AirQualityServiceClient(channel);
-// - Rust: let channel = Channel::from_shared(url)?.connect().await?;
+// - Rust: build an `Endpoint` from `Channel::from_shared`, call
+//   `tls_config(...)` when the URI is https (tonic does not do this
+//   automatically for `from_shared`), then `connect().await`.
 //         let client = air_quality_service_client::AirQualityServiceClient::new(channel.clone());
 //
 // See the `GrpcClient` implementation below for the actual ergonomic wrapper
@@ -296,20 +299,29 @@ impl GrpcClient {
     /// C# equivalent:
     ///   var channel = GrpcChannel.ForAddress(endpoint);
     ///   // then construct typed clients from the same channel
+    #[instrument(skip(), fields(endpoint = %endpoint))]
     pub async fn connect(endpoint: String) -> Result<Self, Box<dyn std::error::Error>> {
-        // Parse the endpoint string into a tonic Endpoint (validates the URI).
-        // `Channel::from_shared` accepts any type that converts to `Bytes`
-        // (a contiguous byte buffer).  `String` satisfies that via
-        // `Into<bytes::Bytes>`.
-        //
-        // The `?` operator converts the `InvalidUri` error into the function's
-        // return error type; in C# this is equivalent to an `ArgumentException`
-        // thrown by `GrpcChannel.ForAddress` for a malformed URL.
-        let channel = Channel::from_shared(endpoint)?
-            // Eagerly establish the connection.  `.connect_lazy()` would be
-            // the lazy alternative (connects on first RPC).
+        tracing::info!("resolving endpoint and opening HTTP/2 channel (TLS if https)");
+        // `Channel::from_shared` returns a tonic `Endpoint`. For `https://` URIs you must
+        // call `tls_config` yourself — unlike `Endpoint::try_from`, `from_shared` leaves
+        // `tls` unset, which produces `HttpsUriWithoutTlsSupport` at connect time.
+        let mut ep = Channel::from_shared(endpoint)
+            .map_err(|e| -> Box<dyn std::error::Error> { Box::new(e) })?;
+
+        if ep.uri().scheme_str() == Some("https") {
+            tracing::debug!("applying ClientTlsConfig with enabled root CAs for HTTPS");
+            ep = ep
+                .tls_config(ClientTlsConfig::new().with_enabled_roots())
+                .map_err(|e| -> Box<dyn std::error::Error> { Box::new(e) })?;
+        }
+
+        // Eagerly establish the connection. `.connect_lazy()` would connect on first RPC.
+        let channel = ep
             .connect()
-            .await?;
+            .await
+            .map_err(|e| -> Box<dyn std::error::Error> { Box::new(e) })?;
+
+        tracing::info!("connected; wiring AirQuality, Energy, Motion, and Room clients");
 
         Ok(Self {
             // Each service client wraps a clone of the same channel.
@@ -333,6 +345,7 @@ impl GrpcClient {
     /// C# equivalent (approx):
     ///   public async Task<List<AirQualityDto>> GetAirQualitiesAsync(
     ///       DateTime? timestampStart, DateTime? timestampEnd, string? roomId)
+    #[instrument(skip(self), level = "debug", err)]
     pub async fn get_air_qualities(
         &self,
         timestamp_start: Option<DateTime<Utc>>,
@@ -383,6 +396,7 @@ impl GrpcClient {
     ///
     /// C# equivalent:
     ///   public async Task<AirQualityDto> GetAirQualityAsync(string id)
+    #[instrument(skip(self), level = "debug", err)]
     pub async fn get_air_quality(&self, air_quality_id: String) -> Result<AirQualityDto, ClientError> {
         let request = proto::GetAirQualityRequest { air_quality_id };
 
@@ -413,6 +427,7 @@ impl GrpcClient {
     /// C# equivalent:
     ///   public async Task<List<EnergyDto>> GetEnergiesAsync(
     ///       DateTime? timestampStart, DateTime? timestampEnd, string? roomId)
+    #[instrument(skip(self), level = "debug", err)]
     pub async fn get_energies(
         &self,
         timestamp_start: Option<DateTime<Utc>>,
@@ -447,6 +462,7 @@ impl GrpcClient {
     ///
     /// C# equivalent:
     ///   public async Task<EnergyDto> GetEnergyAsync(string id)
+    #[instrument(skip(self), level = "debug", err)]
     pub async fn get_energy(&self, energy_id: String) -> Result<EnergyDto, ClientError> {
         let request = proto::GetEnergyRequest { energy_id };
 
@@ -475,6 +491,7 @@ impl GrpcClient {
     /// C# equivalent:
     ///   public async Task<List<MotionDto>> GetMotionsAsync(
     ///       DateTime? timestampStart, DateTime? timestampEnd, string? roomId)
+    #[instrument(skip(self), level = "debug", err)]
     pub async fn get_motions(
         &self,
         timestamp_start: Option<DateTime<Utc>>,
@@ -509,6 +526,7 @@ impl GrpcClient {
     ///
     /// C# equivalent:
     ///   public async Task<MotionDto> GetMotionAsync(string id)
+    #[instrument(skip(self), level = "debug", err)]
     pub async fn get_motion(&self, motion_id: String) -> Result<MotionDto, ClientError> {
         let request = proto::GetMotionRequest { motion_id };
 
@@ -541,6 +559,7 @@ impl GrpcClient {
     /// C# equivalent:
     ///   public async Task<List<RoomDto>> GetRoomsAsync(
     ///       DateTime? timestampStart, DateTime? timestampEnd)
+    #[instrument(skip(self), level = "debug", err)]
     pub async fn get_rooms(
         &self,
         timestamp_start: Option<DateTime<Utc>>,
@@ -573,6 +592,7 @@ impl GrpcClient {
     ///
     /// C# equivalent:
     ///   public async Task<RoomDto> GetRoomAsync(string id)
+    #[instrument(skip(self), level = "debug", err)]
     pub async fn get_room(&self, room_id: String) -> Result<RoomDto, ClientError> {
         let request = proto::GetRoomRequest { room_id };
 

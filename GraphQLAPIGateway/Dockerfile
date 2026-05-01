@@ -1,5 +1,5 @@
 # Build stage
-FROM rust:1.87-slim AS builder
+FROM rust:1.89-slim AS builder
 
 # Install build dependencies:
 # - curl: fallback used by build.rs if protoc is somehow not found
@@ -39,7 +39,5 @@ WORKDIR /app
 COPY --from=builder /app/target/release/graphql-api-gateway /app/graphql-api-gateway
 
 EXPOSE 4000
-
-ENV GRPC_ENDPOINT=http://dataprocessor:8090
 
 CMD ["/app/graphql-api-gateway"]

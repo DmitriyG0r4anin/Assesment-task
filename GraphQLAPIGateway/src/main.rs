@@ -15,6 +15,8 @@ use async_graphql::{EmptyMutation, EmptySubscription, Schema};
 use async_graphql_axum::{GraphQLRequest, GraphQLResponse};
 use axum::{extract::State, response::Html, routing::get, Router};
 use tower_http::cors::{Any, CorsLayer};
+use tower_http::trace::TraceLayer;
+use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 
 use graphql::schema::QueryRoot;
 use grpc_client::GrpcClient;
@@ -32,8 +34,15 @@ async fn graphql_handler(
     State(schema): State<AppSchema>,
     req: GraphQLRequest,
 ) -> GraphQLResponse {
-    // `execute` is async and returns a GraphQL response; `.into()` converts it into the axum-friendly wrapper.
-    schema.execute(req.into_inner()).await.into()
+    let req_inner = req.into_inner();
+    tracing::debug!(operation_name = ?req_inner.operation_name, "executing GraphQL request");
+    let response = schema.execute(req_inner).await;
+    if !response.errors.is_empty() {
+        for err in &response.errors {
+            tracing::warn!(message = %err.message, path = ?err.path, "GraphQL field error");
+        }
+    }
+    response.into()
 }
 
 // Simple handler that returns the GraphiQL UI (an in-browser GraphQL playground).
@@ -58,6 +67,13 @@ async fn main() {
     // Environment variables already set by the host still take precedence.
     let _ = dotenvy::dotenv();
 
+    let filter = EnvFilter::try_from_default_env()
+        .unwrap_or_else(|_| EnvFilter::new("graphql_api_gateway=info,tower_http=info,info"));
+    tracing_subscriber::registry()
+        .with(filter)
+        .with(fmt::layer())
+        .init();
+
     let host = env::var("HOST").unwrap_or_else(|_| "localhost".to_string());
     let port = env::var("PORT")
         .ok()
@@ -65,17 +81,20 @@ async fn main() {
         .unwrap_or(4000);
 
     // Read the gRPC endpoint from an environment variable, with a default fallback.
-    // Equivalent to `Environment.GetEnvironmentVariable("GRPC_ENDPOINT") ?? "http://localhost:8090"`.
+    // Default matches DataProcessor `launchSettings.json` "http" profile (port 5203).
+    // For HTTPS (e.g. https://localhost:7101 or Docker-mapped https://localhost:8091), set
+    // GRPC_ENDPOINT and ensure tonic is built with TLS (`tls-native-roots` in Cargo.toml).
     let grpc_endpoint =
-        env::var("GRPC_ENDPOINT").unwrap_or_else(|_| "http://localhost:8090".to_string());
+        env::var("GRPC_ENDPOINT").unwrap_or_else(|_| "http://localhost:5203".to_string());
 
-    println!("Connecting to gRPC endpoint: {}", grpc_endpoint);
+    tracing::info!(endpoint = %grpc_endpoint, "connecting to DataProcessor gRPC");
 
     // Connect to the gRPC service. `GrpcClient::connect` returns a client wrapper around the generated tonic client.
     // This is similar to creating a `Channel` and a typed gRPC client in C# (e.g. new MyService.MyServiceClient(channel)).
     let grpc_client = GrpcClient::connect(grpc_endpoint)
         .await
         .expect("Failed to connect to gRPC service");
+    tracing::info!("gRPC channel ready (all four service clients share this connection)");
 
     // Build the GraphQL schema and inject the `grpc_client` as shared data accessible to resolvers.
     // In .NET this is comparable to registering a service in DI and then resolving it inside resolvers/controllers.
@@ -101,6 +120,7 @@ async fn main() {
         .route("/graphql", get(graphiql_handler).post(graphql_handler))
         .route("/graphiql", get(graphiql_handler))
         .with_state(schema)
+        .layer(TraceLayer::new_for_http())
         .layer(cors);
 
     // Bind a TCP listener using HOST and PORT from environment.
@@ -109,9 +129,8 @@ async fn main() {
         .await
         .unwrap_or_else(|_| panic!("Failed to bind to {}", bind_address));
 
-    println!("GraphQL API Gateway running on http://{}", bind_address);
-    println!("  POST /graphql  - GraphQL endpoint");
-    println!("  GET  /graphiql - GraphQL playground");
+    tracing::info!(%bind_address, "GraphQL API Gateway listening");
+    tracing::info!("POST /graphql — GraphQL endpoint; GET /graphiql — playground");
 
     // Start serving requests. `axum::serve(listener, app)` is the runtime loop that accepts connections and routes them.
     // Like `host.RunAsync()` in ASP.NET Core, this call only returns on error or shutdown.

@@ -165,7 +165,7 @@ Custom scalar:
 ```graphql
 query {
   airQualities(
-    filter: { roomId: "room-1" }
+    filter: { roomId: "69d8cadbc523afc5b0c39ce0" }
     pagination: { offset: 0, limit: 10 }
   ) {
     items {
