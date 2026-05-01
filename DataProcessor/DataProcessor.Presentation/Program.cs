@@ -7,7 +7,7 @@ var builder = WebApplication.CreateBuilder(args);
 var services = builder.Services;
 
 services.AddApplication()
-                .AddInfrastructure(builder.Configuration);
+    .AddInfrastructure(builder.Configuration);
 
 services.AddGrpc();
 
