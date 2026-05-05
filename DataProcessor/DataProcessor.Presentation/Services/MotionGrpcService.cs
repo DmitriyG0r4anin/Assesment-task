@@ -29,7 +29,10 @@ public class MotionGrpcService(
 
         var result = await mediator.Send(query, context.CancellationToken);
 
-        return result.Adapt<GetMotionsResponse>();
+        var list = new MotionList();
+        list.Motions.AddRange(result.Value!.Select(m => m.Adapt<MotionMessage>()));
+
+        return new GetMotionsResponse { Data = list };
     }
 
     public override async Task<GetMotionResponse> GetMotion(
