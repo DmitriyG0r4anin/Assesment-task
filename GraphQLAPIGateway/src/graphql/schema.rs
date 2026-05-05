@@ -871,9 +871,7 @@ impl QueryRoot {
         let result = all_buckets
             .into_iter()
             .map(|b| {
-                let avg_co2 = co2_buckets
-                    .get(&b)
-                    .and_then(|v| avg_i32(v.iter().copied()));
+                let avg_co2 = co2_buckets.get(&b).and_then(|v| avg_i32(v.iter().copied()));
 
                 let avg_pm25 = pm25_buckets
                     .get(&b)

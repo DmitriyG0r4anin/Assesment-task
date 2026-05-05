@@ -259,10 +259,7 @@ fn attempt_download_with_powershell(
     }
 }
 
-fn extract_zip_file(
-    cache_dir: &Path,
-    zip_path: &Path,
-) -> Result<(), Box<dyn std::error::Error>> {
+fn extract_zip_file(cache_dir: &Path, zip_path: &Path) -> Result<(), Box<dyn std::error::Error>> {
     eprintln!("Extracting protoc...");
 
     // Try unzip on Unix
