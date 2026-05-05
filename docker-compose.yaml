@@ -84,6 +84,9 @@ services:
     build:
       context: ./DataProcessor
       dockerfile: DataProcessor.Presentation/Dockerfile
+    ports:
+      - "8090:8090"
+      - "8091:8091"
     environment:
       ASPNETCORE_HTTP_PORTS: 8090
       ASPNETCORE_HTTPS_PORTS: 8091
