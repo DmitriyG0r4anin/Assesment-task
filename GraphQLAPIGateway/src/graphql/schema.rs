@@ -756,23 +756,19 @@ impl QueryRoot {
             .map(|rid| {
                 let avg_co2 = co2_by_room
                     .get(&rid)
-                    .map(|v| avg_i32(v.iter().copied()))
-                    .flatten();
+                    .and_then(|v| avg_i32(v.iter().copied()));
 
                 let avg_pm25 = pm25_by_room
                     .get(&rid)
-                    .map(|v| avg_i32(v.iter().copied()))
-                    .flatten();
+                    .and_then(|v| avg_i32(v.iter().copied()));
 
                 let avg_humidity = humidity_by_room
                     .get(&rid)
-                    .map(|v| avg_i32(v.iter().copied()))
-                    .flatten();
+                    .and_then(|v| avg_i32(v.iter().copied()));
 
                 let avg_energy = energy_by_room
                     .get(&rid)
-                    .map(|v| avg_f64(v.iter().copied()))
-                    .flatten();
+                    .and_then(|v| avg_f64(v.iter().copied()));
 
                 RoomAggregation {
                     room_name: room_names.get(&rid).cloned(),
@@ -877,23 +873,19 @@ impl QueryRoot {
             .map(|b| {
                 let avg_co2 = co2_buckets
                     .get(&b)
-                    .map(|v| avg_i32(v.iter().copied()))
-                    .flatten();
+                    .and_then(|v| avg_i32(v.iter().copied()));
 
                 let avg_pm25 = pm25_buckets
                     .get(&b)
-                    .map(|v| avg_i32(v.iter().copied()))
-                    .flatten();
+                    .and_then(|v| avg_i32(v.iter().copied()));
 
                 let avg_humidity = humidity_buckets
                     .get(&b)
-                    .map(|v| avg_i32(v.iter().copied()))
-                    .flatten();
+                    .and_then(|v| avg_i32(v.iter().copied()));
 
                 let avg_energy = energy_buckets
                     .get(&b)
-                    .map(|v| avg_f64(v.iter().copied()))
-                    .flatten();
+                    .and_then(|v| avg_f64(v.iter().copied()));
 
                 // Convert the Unix-epoch bucket start back to a DateTime<Utc>.
                 // .NET: DateTimeOffset.FromUnixTimeSeconds(b).UtcDateTime

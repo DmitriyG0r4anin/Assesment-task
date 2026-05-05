@@ -15,7 +15,7 @@
 
 use std::env;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 fn main() {
@@ -172,7 +172,7 @@ fn get_cache_dir() -> Result<PathBuf, Box<dyn std::error::Error>> {
 }
 
 fn download_and_extract_protoc(
-    cache_dir: &PathBuf,
+    cache_dir: &Path,
     os: &str,
     arch: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
@@ -237,7 +237,7 @@ fn attempt_download_with_wget(url: &str, dest: &PathBuf) -> Result<(), Box<dyn s
 #[cfg(windows)]
 fn attempt_download_with_powershell(
     url: &str,
-    dest: &PathBuf,
+    dest: &Path,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let ps_cmd = format!(
         "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; \
@@ -260,8 +260,8 @@ fn attempt_download_with_powershell(
 }
 
 fn extract_zip_file(
-    cache_dir: &PathBuf,
-    zip_path: &PathBuf,
+    cache_dir: &Path,
+    zip_path: &Path,
 ) -> Result<(), Box<dyn std::error::Error>> {
     eprintln!("Extracting protoc...");
 
