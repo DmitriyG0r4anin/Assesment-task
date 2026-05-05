@@ -1,4 +1,3 @@
-using DataProcessor.Domain.Entities;
 using DataProcessor.Infrastructure.Configuration;
 using DataProcessor.Infrastructure.Messaging;
 using DataProcessor.Infrastructure.Persistence.Repositories;
@@ -26,9 +25,7 @@ public static class DependencyInjection
         });
 
         services.AddScoped<IRoomRepository, RoomRepository>();
-        services.AddScoped<IMetricBaseRepository<AirQuality>, MetricBaseRepository<AirQuality>>();
-        services.AddScoped<IMetricBaseRepository<Energy>, MetricBaseRepository<Energy>>();
-        services.AddScoped<IMetricBaseRepository<Motion>, MetricBaseRepository<Motion>>();
+        services.AddScoped(typeof(IMetricBaseRepository<>), typeof(MetricBaseRepository<>));
 
         services.Configure<KafkaConfig>(
             configuration.GetSection(KafkaConfig.SectionName));
