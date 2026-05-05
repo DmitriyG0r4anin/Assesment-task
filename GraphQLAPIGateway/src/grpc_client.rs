@@ -193,7 +193,11 @@ fn air_quality_msg_to_dto(msg: proto::AirQualityMessage) -> AirQualityDto {
         // `timestamp` is `Option<prost_types::Timestamp>` in generated code.
         // `.as_ref().map(...)` converts Option<T> → Option<U>; we fall back to
         // the default (Unix epoch) if the server somehow omits the field.
-        timestamp: msg.timestamp.as_ref().map(proto_ts_to_chrono).unwrap_or_default(),
+        timestamp: msg
+            .timestamp
+            .as_ref()
+            .map(proto_ts_to_chrono)
+            .unwrap_or_default(),
         pm25: msg.pm25,
         co2: msg.co2,
         humidity: msg.humidity,
@@ -204,7 +208,11 @@ fn energy_msg_to_dto(msg: proto::EnergyMessage) -> EnergyDto {
     EnergyDto {
         id: msg.id,
         room_id: msg.room_id,
-        timestamp: msg.timestamp.as_ref().map(proto_ts_to_chrono).unwrap_or_default(),
+        timestamp: msg
+            .timestamp
+            .as_ref()
+            .map(proto_ts_to_chrono)
+            .unwrap_or_default(),
         amount: msg.amount,
     }
 }
@@ -213,7 +221,11 @@ fn motion_msg_to_dto(msg: proto::MotionMessage) -> MotionDto {
     MotionDto {
         id: msg.id,
         room_id: msg.room_id,
-        timestamp: msg.timestamp.as_ref().map(proto_ts_to_chrono).unwrap_or_default(),
+        timestamp: msg
+            .timestamp
+            .as_ref()
+            .map(proto_ts_to_chrono)
+            .unwrap_or_default(),
         is_detected: msg.is_detected,
     }
 }
@@ -380,7 +392,11 @@ impl GrpcClient {
             Some(proto::get_air_qualities_response::Result::Data(list)) => {
                 // Convert each proto message into our DTO using the mapper above.
                 // `.into_iter().map(f).collect()` is LINQ's `.Select(f).ToList()`.
-                Ok(list.air_qualities.into_iter().map(air_quality_msg_to_dto).collect())
+                Ok(list
+                    .air_qualities
+                    .into_iter()
+                    .map(air_quality_msg_to_dto)
+                    .collect())
             }
             Some(proto::get_air_qualities_response::Result::Error(err)) => {
                 // The server returned a domain error; surface it as a Rust error.
@@ -397,7 +413,10 @@ impl GrpcClient {
     /// C# equivalent:
     ///   public async Task<AirQualityDto> GetAirQualityAsync(string id)
     #[instrument(skip(self), level = "debug", err)]
-    pub async fn get_air_quality(&self, air_quality_id: String) -> Result<AirQualityDto, ClientError> {
+    pub async fn get_air_quality(
+        &self,
+        air_quality_id: String,
+    ) -> Result<AirQualityDto, ClientError> {
         let request = proto::GetAirQualityRequest { air_quality_id };
 
         let response = self

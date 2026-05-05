@@ -42,7 +42,11 @@ fn compile_with_protoc() -> Result<(), Box<dyn std::error::Error>> {
     // finds protoc immediately without needing it on the system PATH.
     // This is the key fix for the "OUT_DIR not set" IDE diagnostic.
     if let Ok(cache_dir) = get_cache_dir() {
-        let protoc_exe = if cfg!(windows) { "protoc.exe" } else { "protoc" };
+        let protoc_exe = if cfg!(windows) {
+            "protoc.exe"
+        } else {
+            "protoc"
+        };
         let cached = cache_dir.join("bin").join(protoc_exe);
         if cached.exists() {
             env::set_var("PROTOC", &cached);
@@ -72,22 +76,27 @@ fn compile_with_protoc() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn find_protoc_in_path() -> Result<PathBuf, Box<dyn std::error::Error>> {
-    let protoc_name = if cfg!(windows) { "protoc.exe" } else { "protoc" };
+    let protoc_name = if cfg!(windows) {
+        "protoc.exe"
+    } else {
+        "protoc"
+    };
 
-    let output = Command::new("which")
-        .arg(protoc_name)
-        .output();
+    let output = Command::new("which").arg(protoc_name).output();
 
     // Windows doesn't have 'which', try calling protoc directly
     if cfg!(windows) {
-        if Command::new("protoc").arg("--version").output()?.status.success() {
+        if Command::new("protoc")
+            .arg("--version")
+            .output()?
+            .status
+            .success()
+        {
             return Ok(PathBuf::from("protoc"));
         }
     } else if let Ok(out) = output {
         if out.status.success() {
-            let path = String::from_utf8(out.stdout)?
-                .trim()
-                .to_string();
+            let path = String::from_utf8(out.stdout)?.trim().to_string();
             return Ok(PathBuf::from(path));
         }
     }
@@ -102,7 +111,11 @@ fn setup_protoc() -> Result<PathBuf, Box<dyn std::error::Error>> {
     let cache_dir = get_cache_dir()?;
     fs::create_dir_all(&cache_dir)?;
 
-    let protoc_exe = if cfg!(windows) { "protoc.exe" } else { "protoc" };
+    let protoc_exe = if cfg!(windows) {
+        "protoc.exe"
+    } else {
+        "protoc"
+    };
     // The official protoc release zip extracts into a bin/ subdirectory,
     // so the actual binary lives at <cache_dir>/bin/protoc[.exe].
     let protoc_path = cache_dir.join("bin").join(protoc_exe);
@@ -131,7 +144,11 @@ fn setup_protoc() -> Result<PathBuf, Box<dyn std::error::Error>> {
     }
 
     if !protoc_path.exists() {
-        return Err(format!("protoc not found at expected location: {}", protoc_path.display()).into());
+        return Err(format!(
+            "protoc not found at expected location: {}",
+            protoc_path.display()
+        )
+        .into());
     }
 
     Ok(protoc_path)
@@ -142,7 +159,7 @@ fn get_cache_dir() -> Result<PathBuf, Box<dyn std::error::Error>> {
         // Windows: Use AppData\Local\Temp or similar
         PathBuf::from(
             env::var("LOCALAPPDATA")
-                .unwrap_or_else(|_| env::temp_dir().to_string_lossy().to_string())
+                .unwrap_or_else(|_| env::temp_dir().to_string_lossy().to_string()),
         )
         .join("protoc-cache")
     } else {
@@ -162,7 +179,10 @@ fn download_and_extract_protoc(
     let (url, filename) = get_download_url(os, arch)?;
     let zip_path = cache_dir.join(&filename);
 
-    eprintln!("Downloading protoc {} from GitHub releases...", get_protoc_version());
+    eprintln!(
+        "Downloading protoc {} from GitHub releases...",
+        get_protoc_version()
+    );
 
     // Attempt download with curl (most reliable)
     if attempt_download_with_curl(&url, &zip_path).is_ok() {
@@ -185,10 +205,7 @@ fn download_and_extract_protoc(
         }
     }
 
-    Err(
-        "Failed to download protoc. Please install 'curl' or 'protoc' manually.\n"
-            .into(),
-    )
+    Err("Failed to download protoc. Please install 'curl' or 'protoc' manually.\n".into())
 }
 
 fn attempt_download_with_curl(url: &str, dest: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
@@ -208,11 +225,7 @@ fn attempt_download_with_curl(url: &str, dest: &PathBuf) -> Result<(), Box<dyn s
 
 #[cfg(unix)]
 fn attempt_download_with_wget(url: &str, dest: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
-    let status = Command::new("wget")
-        .arg("-O")
-        .arg(dest)
-        .arg(url)
-        .status()?;
+    let status = Command::new("wget").arg("-O").arg(dest).arg(url).status()?;
 
     if status.success() {
         Ok(())
@@ -246,7 +259,10 @@ fn attempt_download_with_powershell(
     }
 }
 
-fn extract_zip_file(cache_dir: &PathBuf, zip_path: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
+fn extract_zip_file(
+    cache_dir: &PathBuf,
+    zip_path: &PathBuf,
+) -> Result<(), Box<dyn std::error::Error>> {
     eprintln!("Extracting protoc...");
 
     // Try unzip on Unix
@@ -298,8 +314,14 @@ fn get_download_url(os: &str, arch: &str) -> Result<(String, String), Box<dyn st
 
     let (os_part, filename) = match (os, arch) {
         ("windows", "x86_64") => ("win64", format!("protoc-{}-win64.zip", version)),
-        ("linux", "x86_64") => ("linux-x86_64", format!("protoc-{}-linux-x86_64.zip", version)),
-        ("linux", "aarch64") => ("linux-aarch_64", format!("protoc-{}-linux-aarch_64.zip", version)),
+        ("linux", "x86_64") => (
+            "linux-x86_64",
+            format!("protoc-{}-linux-x86_64.zip", version),
+        ),
+        ("linux", "aarch64") => (
+            "linux-aarch_64",
+            format!("protoc-{}-linux-aarch_64.zip", version),
+        ),
         _ => return Err(format!("Unsupported platform: {} {}", os, arch).into()),
     };
 
@@ -315,10 +337,7 @@ fn compile_protos() -> Result<(), Box<dyn std::error::Error>> {
     tonic_build::configure()
         .build_server(false)
         .build_client(true)
-        .compile_protos(
-            &["proto/parameters/parameters.proto"],
-            &["proto/"],
-        )?;
+        .compile_protos(&["proto/parameters/parameters.proto"], &["proto/"])?;
 
     println!("cargo:rerun-if-changed=proto/parameters/parameters.proto");
     println!("cargo:rerun-if-changed=build.rs");
