@@ -1,4 +1,3 @@
-
 use chrono::{DateTime, Utc};
 use tonic::transport::{Channel, ClientTlsConfig};
 use tracing::instrument;
@@ -12,15 +11,14 @@ use proto::energy_service_client::EnergyServiceClient;
 use proto::motion_service_client::MotionServiceClient;
 use proto::room_service_client::RoomServiceClient;
 
-
 #[derive(Debug, Clone)]
 pub struct AirQualityDto {
     pub id: String,
     pub room_id: String,
     pub timestamp: DateTime<Utc>,
-    pub pm25: i32,     
-    pub co2: i32,      
-    pub humidity: i32, 
+    pub pm25: i32,
+    pub co2: i32,
+    pub humidity: i32,
 }
 
 #[derive(Debug, Clone)]
@@ -164,13 +162,11 @@ impl GrpcClient {
             .into_inner(); // unwrap the tonic::Response wrapper
 
         match response.result {
-            Some(proto::get_air_qualities_response::Result::Data(list)) => {
-                Ok(list
-                    .air_qualities
-                    .into_iter()
-                    .map(air_quality_msg_to_dto)
-                    .collect())
-            }
+            Some(proto::get_air_qualities_response::Result::Data(list)) => Ok(list
+                .air_qualities
+                .into_iter()
+                .map(air_quality_msg_to_dto)
+                .collect()),
             Some(proto::get_air_qualities_response::Result::Error(err)) => {
                 Err(format!("gRPC error (code {}): {}", err.code, err.message).into())
             }
