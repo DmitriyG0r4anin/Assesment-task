@@ -320,22 +320,38 @@ fn paginate_air_quality(
     pagination: &PaginationInput,
 ) -> AirQualityConnection {
     let (page_items, total_count, has_next_page) = apply_pagination(items, pagination);
-    AirQualityConnection { items: page_items, total_count, has_next_page }
+    AirQualityConnection {
+        items: page_items,
+        total_count,
+        has_next_page,
+    }
 }
 
 fn paginate_energy(items: Vec<Energy>, pagination: &PaginationInput) -> EnergyConnection {
     let (page_items, total_count, has_next_page) = apply_pagination(items, pagination);
-    EnergyConnection { items: page_items, total_count, has_next_page }
+    EnergyConnection {
+        items: page_items,
+        total_count,
+        has_next_page,
+    }
 }
 
 fn paginate_motion(items: Vec<Motion>, pagination: &PaginationInput) -> MotionConnection {
     let (page_items, total_count, has_next_page) = apply_pagination(items, pagination);
-    MotionConnection { items: page_items, total_count, has_next_page }
+    MotionConnection {
+        items: page_items,
+        total_count,
+        has_next_page,
+    }
 }
 
 fn paginate_room(items: Vec<Room>, pagination: &PaginationInput) -> RoomConnection {
     let (page_items, total_count, has_next_page) = apply_pagination(items, pagination);
-    RoomConnection { items: page_items, total_count, has_next_page }
+    RoomConnection {
+        items: page_items,
+        total_count,
+        has_next_page,
+    }
 }
 
 /// Core pagination logic shared by all four list types.
@@ -471,11 +487,7 @@ impl QueryRoot {
         let pagination = pagination.unwrap_or_default();
 
         let dtos = client
-            .get_air_qualities(
-                filter.timestamp_start,
-                filter.timestamp_end,
-                filter.room_id,
-            )
+            .get_air_qualities(filter.timestamp_start, filter.timestamp_end, filter.room_id)
             .await
             .map_err(|e| gql_grpc_err("airQualities", e))?;
 
@@ -516,11 +528,7 @@ impl QueryRoot {
         let pagination = pagination.unwrap_or_default();
 
         let dtos = client
-            .get_energies(
-                filter.timestamp_start,
-                filter.timestamp_end,
-                filter.room_id,
-            )
+            .get_energies(filter.timestamp_start, filter.timestamp_end, filter.room_id)
             .await
             .map_err(|e| gql_grpc_err("energies", e))?;
 
@@ -529,11 +537,7 @@ impl QueryRoot {
     }
 
     /// Returns a single energy reading by its ID.
-    async fn energy(
-        &self,
-        ctx: &Context<'_>,
-        id: String,
-    ) -> async_graphql::Result<Energy> {
+    async fn energy(&self, ctx: &Context<'_>, id: String) -> async_graphql::Result<Energy> {
         let client = ctx.data::<GrpcClient>()?;
 
         client
@@ -563,11 +567,7 @@ impl QueryRoot {
         let pagination = pagination.unwrap_or_default();
 
         let dtos = client
-            .get_motions(
-                filter.timestamp_start,
-                filter.timestamp_end,
-                filter.room_id,
-            )
+            .get_motions(filter.timestamp_start, filter.timestamp_end, filter.room_id)
             .await
             .map_err(|e| gql_grpc_err("motions", e))?;
 
@@ -583,11 +583,7 @@ impl QueryRoot {
     }
 
     /// Returns a single motion event by its ID.
-    async fn motion(
-        &self,
-        ctx: &Context<'_>,
-        id: String,
-    ) -> async_graphql::Result<Motion> {
+    async fn motion(&self, ctx: &Context<'_>, id: String) -> async_graphql::Result<Motion> {
         let client = ctx.data::<GrpcClient>()?;
 
         client
@@ -625,11 +621,7 @@ impl QueryRoot {
     }
 
     /// Returns a single room by its ID.
-    async fn room(
-        &self,
-        ctx: &Context<'_>,
-        id: String,
-    ) -> async_graphql::Result<Room> {
+    async fn room(&self, ctx: &Context<'_>, id: String) -> async_graphql::Result<Room> {
         let client = ctx.data::<GrpcClient>()?;
 
         client
@@ -709,22 +701,34 @@ impl QueryRoot {
 
         // Use a BTreeMap so the output order is deterministic (sorted by room_id).
         // .NET parallel: GroupBy(x => x.RoomId) + aggregation.
-        let mut co2_by_room:       BTreeMap<String, Vec<i32>>  = BTreeMap::new();
-        let mut pm25_by_room:      BTreeMap<String, Vec<i32>>  = BTreeMap::new();
-        let mut humidity_by_room:  BTreeMap<String, Vec<i32>>  = BTreeMap::new();
-        let mut energy_by_room:    BTreeMap<String, Vec<f64>>  = BTreeMap::new();
-        let mut motion_by_room:    BTreeMap<String, i32>       = BTreeMap::new();
-        let mut total_by_room:     BTreeMap<String, i32>       = BTreeMap::new();
+        let mut co2_by_room: BTreeMap<String, Vec<i32>> = BTreeMap::new();
+        let mut pm25_by_room: BTreeMap<String, Vec<i32>> = BTreeMap::new();
+        let mut humidity_by_room: BTreeMap<String, Vec<i32>> = BTreeMap::new();
+        let mut energy_by_room: BTreeMap<String, Vec<f64>> = BTreeMap::new();
+        let mut motion_by_room: BTreeMap<String, i32> = BTreeMap::new();
+        let mut total_by_room: BTreeMap<String, i32> = BTreeMap::new();
 
         for aq in &air_qualities {
-            co2_by_room.entry(aq.room_id.clone()).or_default().push(aq.co2);
-            pm25_by_room.entry(aq.room_id.clone()).or_default().push(aq.pm25);
-            humidity_by_room.entry(aq.room_id.clone()).or_default().push(aq.humidity);
+            co2_by_room
+                .entry(aq.room_id.clone())
+                .or_default()
+                .push(aq.co2);
+            pm25_by_room
+                .entry(aq.room_id.clone())
+                .or_default()
+                .push(aq.pm25);
+            humidity_by_room
+                .entry(aq.room_id.clone())
+                .or_default()
+                .push(aq.humidity);
             *total_by_room.entry(aq.room_id.clone()).or_default() += 1;
         }
 
         for en in &energies {
-            energy_by_room.entry(en.room_id.clone()).or_default().push(en.amount);
+            energy_by_room
+                .entry(en.room_id.clone())
+                .or_default()
+                .push(en.amount);
             *total_by_room.entry(en.room_id.clone()).or_default() += 1;
         }
 
@@ -736,10 +740,8 @@ impl QueryRoot {
         }
 
         // Collect all distinct room_ids seen across all services.
-        let mut all_room_ids: std::collections::BTreeSet<String> = total_by_room
-            .keys()
-            .cloned()
-            .collect();
+        let mut all_room_ids: std::collections::BTreeSet<String> =
+            total_by_room.keys().cloned().collect();
 
         // If the caller requested a specific room_id but it had no data, still
         // include it (with null averages) so the caller gets a defined result.
@@ -754,23 +756,19 @@ impl QueryRoot {
             .map(|rid| {
                 let avg_co2 = co2_by_room
                     .get(&rid)
-                    .map(|v| avg_i32(v.iter().copied()))
-                    .flatten();
+                    .and_then(|v| avg_i32(v.iter().copied()));
 
                 let avg_pm25 = pm25_by_room
                     .get(&rid)
-                    .map(|v| avg_i32(v.iter().copied()))
-                    .flatten();
+                    .and_then(|v| avg_i32(v.iter().copied()));
 
                 let avg_humidity = humidity_by_room
                     .get(&rid)
-                    .map(|v| avg_i32(v.iter().copied()))
-                    .flatten();
+                    .and_then(|v| avg_i32(v.iter().copied()));
 
                 let avg_energy = energy_by_room
                     .get(&rid)
-                    .map(|v| avg_f64(v.iter().copied()))
-                    .flatten();
+                    .and_then(|v| avg_f64(v.iter().copied()));
 
                 RoomAggregation {
                     room_name: room_names.get(&rid).cloned(),
@@ -838,12 +836,12 @@ impl QueryRoot {
         let bucket = |ts: i64| -> i64 { (ts / interval_secs) * interval_secs };
 
         // BTreeMap keeps buckets sorted chronologically.
-        let mut co2_buckets:      BTreeMap<i64, Vec<i32>>  = BTreeMap::new();
-        let mut pm25_buckets:     BTreeMap<i64, Vec<i32>>  = BTreeMap::new();
-        let mut humidity_buckets: BTreeMap<i64, Vec<i32>>  = BTreeMap::new();
-        let mut energy_buckets:   BTreeMap<i64, Vec<f64>>  = BTreeMap::new();
-        let mut motion_buckets:   BTreeMap<i64, i32>       = BTreeMap::new();
-        let mut total_buckets:    BTreeMap<i64, i32>       = BTreeMap::new();
+        let mut co2_buckets: BTreeMap<i64, Vec<i32>> = BTreeMap::new();
+        let mut pm25_buckets: BTreeMap<i64, Vec<i32>> = BTreeMap::new();
+        let mut humidity_buckets: BTreeMap<i64, Vec<i32>> = BTreeMap::new();
+        let mut energy_buckets: BTreeMap<i64, Vec<f64>> = BTreeMap::new();
+        let mut motion_buckets: BTreeMap<i64, i32> = BTreeMap::new();
+        let mut total_buckets: BTreeMap<i64, i32> = BTreeMap::new();
 
         for aq in &air_qualities {
             let b = bucket(aq.timestamp.timestamp());
@@ -868,31 +866,24 @@ impl QueryRoot {
         }
 
         // Collect all bucket timestamps seen across all services.
-        let all_buckets: std::collections::BTreeSet<i64> =
-            total_buckets.keys().copied().collect();
+        let all_buckets: std::collections::BTreeSet<i64> = total_buckets.keys().copied().collect();
 
         let result = all_buckets
             .into_iter()
             .map(|b| {
-                let avg_co2 = co2_buckets
-                    .get(&b)
-                    .map(|v| avg_i32(v.iter().copied()))
-                    .flatten();
+                let avg_co2 = co2_buckets.get(&b).and_then(|v| avg_i32(v.iter().copied()));
 
                 let avg_pm25 = pm25_buckets
                     .get(&b)
-                    .map(|v| avg_i32(v.iter().copied()))
-                    .flatten();
+                    .and_then(|v| avg_i32(v.iter().copied()));
 
                 let avg_humidity = humidity_buckets
                     .get(&b)
-                    .map(|v| avg_i32(v.iter().copied()))
-                    .flatten();
+                    .and_then(|v| avg_i32(v.iter().copied()));
 
                 let avg_energy = energy_buckets
                     .get(&b)
-                    .map(|v| avg_f64(v.iter().copied()))
-                    .flatten();
+                    .and_then(|v| avg_f64(v.iter().copied()));
 
                 // Convert the Unix-epoch bucket start back to a DateTime<Utc>.
                 // .NET: DateTimeOffset.FromUnixTimeSeconds(b).UtcDateTime

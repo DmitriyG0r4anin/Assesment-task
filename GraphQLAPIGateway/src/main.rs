@@ -30,10 +30,7 @@ type AppSchema = Schema<QueryRoot, EmptyMutation, EmptySubscription>;
 //   This is similar to injecting a service from the ASP.NET Core DI container into a controller action.
 // - `req: GraphQLRequest` is the incoming GraphQL request payload.
 // The handler executes the request against the schema and converts the result into an HTTP response.
-async fn graphql_handler(
-    State(schema): State<AppSchema>,
-    req: GraphQLRequest,
-) -> GraphQLResponse {
+async fn graphql_handler(State(schema): State<AppSchema>, req: GraphQLRequest) -> GraphQLResponse {
     let req_inner = req.into_inner();
     tracing::debug!(operation_name = ?req_inner.operation_name, "executing GraphQL request");
     let response = schema.execute(req_inner).await;
@@ -134,7 +131,5 @@ async fn main() {
 
     // Start serving requests. `axum::serve(listener, app)` is the runtime loop that accepts connections and routes them.
     // Like `host.RunAsync()` in ASP.NET Core, this call only returns on error or shutdown.
-    axum::serve(listener, app)
-        .await
-        .expect("Server error");
+    axum::serve(listener, app).await.expect("Server error");
 }
