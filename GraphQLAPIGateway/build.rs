@@ -1,25 +1,9 @@
-// ============================================================================
-// build.rs — Cross-platform protoc setup (downloads or uses system version)
-// ============================================================================
-//
-// This build script ensures protoc is available before compiling proto files.
-// It works on Windows, Linux, and macOS without requiring system installation.
-//
-// Strategy:
-// 1. First, check if protoc is already in PATH
-// 2. If not found:
-//    - Windows: Download pre-built binary from GitHub releases
-//    - Linux/macOS: Attempt download, with helpful instructions if it fails
-// 3. Set PROTOC environment variable and compile proto files
-// ============================================================================
-
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
 fn main() {
-    // Try to compile protos, handling protoc setup as needed
     if let Err(e) = compile_with_protoc() {
         eprintln!("Error: {}", e);
         std::process::exit(1);
@@ -27,20 +11,12 @@ fn main() {
 }
 
 fn compile_with_protoc() -> Result<(), Box<dyn std::error::Error>> {
-    // Step 1: If PROTOC is already set in the environment (e.g. by CI or the
-    // user), trust it and go straight to compilation.  rust-analyzer inherits
-    // this variable when it is present, so setting it in your shell / IDE env
-    // is the fastest way to silence the "OUT_DIR not set" diagnostic.
     if let Ok(protoc) = env::var("PROTOC") {
         eprintln!("✓ Using PROTOC from environment: {}", protoc);
         return compile_protos();
     }
 
     // Step 2: Check the local download cache BEFORE touching PATH.
-    // After the very first `cargo build` the binary is cached here, so every
-    // subsequent build — including rust-analyzer's internal build-script run —
-    // finds protoc immediately without needing it on the system PATH.
-    // This is the key fix for the "OUT_DIR not set" IDE diagnostic.
     if let Ok(cache_dir) = get_cache_dir() {
         let protoc_exe = if cfg!(windows) {
             "protoc.exe"
@@ -116,11 +92,8 @@ fn setup_protoc() -> Result<PathBuf, Box<dyn std::error::Error>> {
     } else {
         "protoc"
     };
-    // The official protoc release zip extracts into a bin/ subdirectory,
-    // so the actual binary lives at <cache_dir>/bin/protoc[.exe].
     let protoc_path = cache_dir.join("bin").join(protoc_exe);
 
-    // Check if already cached
     if protoc_path.exists() {
         // Make executable on Unix
         #[cfg(unix)]
@@ -132,7 +105,6 @@ fn setup_protoc() -> Result<PathBuf, Box<dyn std::error::Error>> {
         return Ok(protoc_path);
     }
 
-    // Download protoc
     download_and_extract_protoc(&cache_dir, os, arch)?;
 
     // Make executable on Unix
@@ -184,7 +156,6 @@ fn download_and_extract_protoc(
         get_protoc_version()
     );
 
-    // Attempt download with curl (most reliable)
     if attempt_download_with_curl(&url, &zip_path).is_ok() {
         return extract_zip_file(cache_dir, &zip_path);
     }

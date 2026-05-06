@@ -17,7 +17,6 @@ prost = "0.13"
 prost-types = "0.13"
 serde = { version = "1", features = ["derive"] }
 tokio = { version = "1", features = ["full"] }
-# `tls` is required for `https://` gRPC URLs; `tls-native-roots` uses the OS trust store (Windows/macOS/Linux).
 tonic = { version = "0.12", features = ["tls", "tls-native-roots"] }
 tower-http = { version = "0.6", features = ["cors", "trace"] }
 tracing = "0.1"
