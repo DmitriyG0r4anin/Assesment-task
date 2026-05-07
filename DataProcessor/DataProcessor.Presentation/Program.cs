@@ -13,8 +13,11 @@ services.AddGrpc();
 
 var app = builder.Build();
 
-app.UseHttpsRedirection();
-app.UseHsts();
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+    app.UseHsts();
+}
 
 GrpcMappingConfig.RegisterMappings();
 

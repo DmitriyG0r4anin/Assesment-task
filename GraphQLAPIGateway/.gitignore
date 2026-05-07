@@ -1,0 +1,11 @@
+# Rust / Cargo — https://doc.rust-lang.org/cargo/guide/working-on-a-binary.html
+# Binary crate: keep Cargo.lock in version control (do not ignore it).
+
+debug/
+target/
+
+# rustfmt backups
+**/*.rs.bk
+
+# MSVC debug symbols from rustc on Windows
+*.pdb

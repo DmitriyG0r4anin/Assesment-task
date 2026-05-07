@@ -1,0 +1,179 @@
+syntax = "proto3";
+
+import "google/protobuf/timestamp.proto";
+
+package parameters;
+
+// ── Air Quality ──────────────────────────────────────────────────────────────
+
+service AirQualityService {
+  rpc GetAirQualities (GetAirQualitiesRequest) returns (GetAirQualitiesResponse);
+  rpc GetAirQuality   (GetAirQualityRequest)   returns (GetAirQualityResponse);
+}
+
+message AirQualityMessage {
+  string                    id        = 1; // Unique record ID (UUID string)
+  string                    room_id   = 2; // ID of the room the sensor is in
+  google.protobuf.Timestamp timestamp = 3; // When the reading was taken
+  int32                     pm25      = 4; // Fine-particulate-matter level
+  int32                     co2       = 5; // CO₂ concentration (ppm)
+  int32                     humidity  = 6; // Relative humidity (%)
+}
+
+message GetAirQualitiesRequest {
+  optional google.protobuf.Timestamp timestamp_start = 1; // Inclusive lower bound
+  optional google.protobuf.Timestamp timestamp_end   = 2; // Inclusive upper bound
+  optional string                    room_id         = 3; // Filter by room
+}
+
+message GetAirQualityRequest {
+  string air_quality_id = 1; // ID of the record to fetch
+}
+
+message AirQualityList {
+  repeated AirQualityMessage air_qualities = 1;
+}
+
+message GetAirQualitiesResponse {
+  oneof result {
+    AirQualityList data  = 1;
+    ErrorResponse  error = 2;
+  }
+}
+
+message GetAirQualityResponse {
+  oneof result {
+    AirQualityMessage data  = 1;
+    ErrorResponse     error = 2;
+  }
+}
+
+// ── Energy ───────────────────────────────────────────────────────────────────
+
+service EnergyService {
+  rpc GetEnergies (GetEnergiesRequest) returns (GetEnergiesResponse);
+  rpc GetEnergy   (GetEnergyRequest)   returns (GetEnergyResponse);
+}
+
+message EnergyMessage {
+  string                    id        = 1; // Unique record ID (UUID string)
+  string                    room_id   = 2; // ID of the room
+  google.protobuf.Timestamp timestamp = 3; // When the reading was taken
+  double                    amount    = 4; // Energy consumed (e.g. kWh); maps to f64 in Rust
+}
+
+message GetEnergiesRequest {
+  optional google.protobuf.Timestamp timestamp_start = 1;
+  optional google.protobuf.Timestamp timestamp_end   = 2;
+  optional string                    room_id         = 3;
+}
+
+message GetEnergyRequest {
+  string energy_id = 1;
+}
+
+message EnergyList {
+  repeated EnergyMessage energies = 1;
+}
+
+message GetEnergiesResponse {
+  oneof result {
+    EnergyList    data  = 1;
+    ErrorResponse error = 2;
+  }
+}
+
+message GetEnergyResponse {
+  oneof result {
+    EnergyMessage data  = 1;
+    ErrorResponse error = 2;
+  }
+}
+
+// ── Motion ───────────────────────────────────────────────────────────────────
+
+service MotionService {
+  rpc GetMotions (GetMotionsRequest) returns (GetMotionsResponse);
+  rpc GetMotion  (GetMotionRequest)  returns (GetMotionResponse);
+}
+
+message MotionMessage {
+  string                    id          = 1; // Unique record ID (UUID string)
+  string                    room_id     = 2; // ID of the room
+  google.protobuf.Timestamp timestamp   = 3; // When the event was recorded
+  bool                      is_detected = 4; // true = motion detected; maps to bool in Rust
+}
+
+message GetMotionsRequest {
+  optional google.protobuf.Timestamp timestamp_start = 1;
+  optional google.protobuf.Timestamp timestamp_end   = 2;
+  optional string                    room_id         = 3;
+}
+
+message GetMotionRequest {
+  string motion_id = 1;
+}
+
+message MotionList {
+  repeated MotionMessage motions = 1;
+}
+
+message GetMotionsResponse {
+  oneof result {
+    MotionList    data  = 1;
+    ErrorResponse error = 2;
+  }
+}
+
+message GetMotionResponse {
+  oneof result {
+    MotionMessage data  = 1;
+    ErrorResponse error = 2;
+  }
+}
+
+// ── Room ─────────────────────────────────────────────────────────────────────
+
+service RoomService {
+  rpc GetRooms (GetRoomsRequest) returns (GetRoomsResponse);
+  rpc GetRoom  (GetRoomRequest)  returns (GetRoomResponse);
+}
+
+message RoomMessage {
+  string id   = 1; 
+  string name = 2; 
+}
+
+message GetRoomsRequest {
+  optional google.protobuf.Timestamp timestamp_start = 1;
+  optional google.protobuf.Timestamp timestamp_end   = 2;
+}
+
+message GetRoomRequest {
+  string room_id = 1;
+}
+
+message RoomList {
+  repeated RoomMessage rooms = 1;
+}
+
+message GetRoomsResponse {
+  oneof result {
+    RoomList      data  = 1;
+    ErrorResponse error = 2;
+  }
+}
+
+message GetRoomResponse {
+  oneof result {
+    RoomMessage   data  = 1;
+    ErrorResponse error = 2;
+  }
+}
+
+// ── Shared ───────────────────────────────────────────────────────────────────
+
+message ErrorResponse {
+  int32  code    = 1;
+  string message = 2;
+}
