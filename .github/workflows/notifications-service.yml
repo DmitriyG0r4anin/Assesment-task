@@ -29,9 +29,9 @@ jobs:
           sonarProjectKey: gh0stf1ghter_Assesment-task_NotificationsService
           sonarProjectName: gh0stf1ghter_Assesment-task_NotificationsService
           sonarOrganization: gh0stf1ghter
-          dotnetBuildArguments: ./NotificationsService --configuration Release
+          dotnetBuildArguments: ./NotificationsService NotificationsService.slnx --configuration Release
           sonarBeginArguments: /d:sonar.projectBaseDir="/github/workspace/NotificationsService" /d:sonar.cs.opencover.reportsPaths="NotificationsService/**/TestResults/**/coverage.opencover.xml" -d:sonar.cs.vstest.reportsPaths="NotificationsService/**/TestResults/*.trx" /d:sonar.coverage.exclusions="${{env.EXCLUDE_FROM_COVERAGE}}" /d:sonar.exclusions="${{env.EXCLUDE_FROM_SONAR}}"
     env:
-      EXCLUDE_FROM_COVERAGE: "**/Program.cs, **/DependencyInjection.cs, **/Models/*, **/Configuration/*, **/Serialization/*, **/Services/*, **/Hubs/*"
+      EXCLUDE_FROM_COVERAGE: "**/Program.cs, **/Models/*, **/Configuration/*, **/Serialization/*, **/Services/*, **/Hubs/*"
       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
       EXCLUDE_FROM_SONAR: "**/Dockerfile"
