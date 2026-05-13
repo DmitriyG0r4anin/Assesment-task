@@ -4,7 +4,17 @@ using NotificationsService.Hubs;
 using NotificationsService.Serialization;
 
 var builder = WebApplication.CreateSlimBuilder(args);
-builder.WebHost.UseKestrelHttpsConfiguration();
+
+// Dev HTTPS (dotnet dev-certs) is not available in Linux containers; binding HTTPS there throws.
+// Official images set DOTNET_RUNNING_IN_CONTAINER=true.
+var inContainer = string.Equals(
+    Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER"),
+    "true",
+    StringComparison.OrdinalIgnoreCase);
+if (!inContainer)
+{
+    builder.WebHost.UseKestrelHttpsConfiguration();
+}
 
 var services = builder.Services;
 

@@ -79,8 +79,7 @@ services:
       MAX_BACKOFF: ${MAX_BACKOFF}
     restart: unless-stopped
 
-  # data-processor:
-  dataprocessor:
+  data-processor:
     build:
       context: ./DataProcessor
       dockerfile: DataProcessor.Presentation/Dockerfile
@@ -90,10 +89,6 @@ services:
     environment:
       ASPNETCORE_HTTP_PORTS: 8090
       ASPNETCORE_HTTPS_PORTS: 8091
-      Kafka_Brokers: ${KAFKA_BROKERS:-broker:29092}
-      Kafka_MetricTopic: ${KAFKA_TOPIC:-meter-data}
-      MongoDb__ConnectionString: ${MONGODB_CONNECTION:-mongodb://mongodb:27017}
-      MongoDb__DatabaseName: ${MONGODB_DATABASE:-data_processor}
     depends_on:
       - broker
       - mongodb
@@ -104,10 +99,8 @@ services:
       dockerfile: Dockerfile
     ports:
       - "8092:8092"
-      - "8093:8093"
     environment:
       ASPNETCORE_HTTP_PORTS: 8092
-      ASPNETCORE_HTTPS_PORTS: 8093
       Kafka_Brokers: ${KAFKA_BROKERS:-broker:29092}
       Kafka_MotionTopic: ${KAFKA_MOTION_TOPIC:-motion-events}
     depends_on:
@@ -125,23 +118,10 @@ services:
     environment:
       HOST: 0.0.0.0
       PORT: 4000
-      GRPC_ENDPOINT: http://dataprocessor:8090
+      GRPC_ENDPOINT: http://data-processor:8090
     depends_on:
-      - dataprocessor
+      - data-processor
     restart: unless-stopped
-
-  # frontend:
-  #   hostname: frontend
-  #   container_name: frontend
-  #   build:
-  #     context: ./frontend
-  #     dockerfile: Dockerfile
-  #   ports:
-  #     - "3000:80"
-  #   depends_on:
-  #     - graphql-api-gateway
-  #     - notifications-service
-  #   restart: unless-stopped
 
 volumes:
   mongodb_data:

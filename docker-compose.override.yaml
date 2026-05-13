@@ -1,10 +1,9 @@
-# Local development overrides
 services:
   data-ingestor:
     volumes:
       - ./DataIngestor:/app/src:ro
 
-  dataprocessor:
+  data-processor:
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
     volumes:
