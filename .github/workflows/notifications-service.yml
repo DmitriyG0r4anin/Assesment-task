@@ -33,6 +33,6 @@ jobs:
           dotnetTestArguments: ./NotificationsService --no-build --configuration Release --verbosity normal --logger trx --collect:"XPlat Code Coverage" -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=opencover
           sonarBeginArguments: /d:sonar.projectBaseDir="/github/workspace/NotificationsService" /d:sonar.cs.opencover.reportsPaths="NotificationsService/**/TestResults/**/coverage.opencover.xml" -d:sonar.cs.vstest.reportsPaths="NotificationsService/**/TestResults/*.trx" /d:sonar.coverage.exclusions="${{env.EXCLUDE_FROM_COVERAGE}}" /d:sonar.exclusions="${{env.EXCLUDE_FROM_SONAR}}"
     env:
-      EXCLUDE_FROM_COVERAGE: "**/Program.cs, **/Models/*, **/Configuration/*, **/Serialization/*, **/Services/*, **/Hubs/*"
+      EXCLUDE_FROM_COVERAGE: "**/Program.cs, **/Models/*, **/Configuration/*, **/Serialization/*, **/Consumers/*, **/Hubs/*"
       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
       EXCLUDE_FROM_SONAR: "**/Dockerfile"
