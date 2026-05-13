@@ -7,11 +7,11 @@ using NotificationsService.Models;
 using NotificationsService.Serialization;
 using System.Text.Json;
 
-namespace NotificationsService.Services;
+namespace NotificationsService.Consumers;
 
-public class KafkaMotionConsumerService(
+public class KafkaMotionConsumer(
     IHubContext<MotionHub> hubContext,
-    ILogger<KafkaMotionConsumerService> logger,
+    ILogger<KafkaMotionConsumer> logger,
     IOptions<KafkaConfig> settings) : BackgroundService
 {
     private readonly KafkaConfig _settings = settings.Value;

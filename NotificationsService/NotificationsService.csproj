@@ -17,4 +17,10 @@
     <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.23.0" />
   </ItemGroup>
 
+  <!-- Confluent.Kafka loads librdkafka by reflecting over NativeMethods DllImports (LibRdKafka.SetDelegates).
+       Native AOT would trim those methods; rooting the assembly keeps them so delegate binding succeeds on Linux/Docker. -->
+  <ItemGroup>
+    <TrimmerRootAssembly Include="Confluent.Kafka" />
+  </ItemGroup>
+
 </Project>
