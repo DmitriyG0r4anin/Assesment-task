@@ -1,7 +1,7 @@
 using NotificationsService.Configuration;
+using NotificationsService.Consumers;
 using NotificationsService.Hubs;
 using NotificationsService.Serialization;
-using NotificationsService.Services;
 
 var builder = WebApplication.CreateSlimBuilder(args);
 builder.WebHost.UseKestrelHttpsConfiguration();
@@ -14,7 +14,7 @@ services.AddSignalR().AddJsonProtocol(options =>
 {
     options.PayloadSerializerOptions.TypeInfoResolver = SignalRPayloadJsonContext.Default;
 });
-services.AddHostedService<KafkaMotionConsumerService>();
+services.AddHostedService<KafkaMotionConsumer>();
 
 services.AddCors(options =>
 {

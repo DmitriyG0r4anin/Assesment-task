@@ -1,6 +1,4 @@
-using Confluent.Kafka;
 using Microsoft.AspNetCore.SignalR;
-using NotificationsService.Models;
 
 namespace NotificationsService.Hubs;
 

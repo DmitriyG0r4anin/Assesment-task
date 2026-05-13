@@ -90,13 +90,29 @@ services:
     environment:
       ASPNETCORE_HTTP_PORTS: 8090
       ASPNETCORE_HTTPS_PORTS: 8091
-      KAFKA_BROKERS: ${KAFKA_BROKERS:-broker:29092}
-      KAFKA_TOPIC: ${KAFKA_TOPIC:-meter-data}
+      Kafka_Brokers: ${KAFKA_BROKERS:-broker:29092}
+      Kafka_MetricTopic: ${KAFKA_TOPIC:-meter-data}
       MongoDb__ConnectionString: ${MONGODB_CONNECTION:-mongodb://mongodb:27017}
       MongoDb__DatabaseName: ${MONGODB_DATABASE:-data_processor}
     depends_on:
       - broker
       - mongodb
+
+  notifications-service:
+    build:
+      context: ./NotificationsService
+      dockerfile: Dockerfile
+    ports:
+      - "8092:8092"
+      - "8093:8093"
+    environment:
+      ASPNETCORE_HTTP_PORTS: 8092
+      ASPNETCORE_HTTPS_PORTS: 8093
+      Kafka_Brokers: ${KAFKA_BROKERS:-broker:29092}
+      Kafka_MotionTopic: ${KAFKA_MOTION_TOPIC:-motion-events}
+    depends_on:
+      - broker
+    restart: unless-stopped
 
   graphql-api-gateway:
     hostname: graphql-api-gateway
@@ -114,7 +130,18 @@ services:
       - dataprocessor
     restart: unless-stopped
 
-  # notification:
+  # frontend:
+  #   hostname: frontend
+  #   container_name: frontend
+  #   build:
+  #     context: ./frontend
+  #     dockerfile: Dockerfile
+  #   ports:
+  #     - "3000:80"
+  #   depends_on:
+  #     - graphql-api-gateway
+  #     - notifications-service
+  #   restart: unless-stopped
 
 volumes:
   mongodb_data:
