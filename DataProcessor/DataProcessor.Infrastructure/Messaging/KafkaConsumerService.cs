@@ -16,6 +16,7 @@ public class KafkaConsumerService(
     IOptions<KafkaConfig> settings) : BackgroundService
 {
     private readonly KafkaConfig _settings = settings.Value;
+    private IProducer<Null, string>? _producer;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -23,10 +24,10 @@ public class KafkaConsumerService(
         {
             logger.LogInformation(
                 "Kafka consumer starting. Brokers: {Brokers}, Topic: {Topic}, Group: {GroupId}",
-                _settings.Brokers, _settings.Topic, _settings.GroupId);
+                _settings.Brokers, _settings.MetricTopic, _settings.GroupId);
         }
 
-        var config = new ConsumerConfig
+        var consumerConfig = new ConsumerConfig
         {
             BootstrapServers = _settings.Brokers,
             GroupId = _settings.GroupId,
@@ -34,35 +35,48 @@ public class KafkaConsumerService(
             EnableAutoCommit = true
         };
 
-        using var consumer = new ConsumerBuilder<Ignore, string>(config).Build();
-        consumer.Subscribe(_settings.Topic);
-
-        while (!stoppingToken.IsCancellationRequested)
+        var producerConfig = new ProducerConfig
         {
-            try
+            BootstrapServers = _settings.Brokers
+        };
+
+        _producer = new ProducerBuilder<Null, string>(producerConfig).Build();
+        using var consumer = new ConsumerBuilder<Ignore, string>(consumerConfig).Build();
+        consumer.Subscribe(_settings.MetricTopic);
+
+        try
+        {
+            while (!stoppingToken.IsCancellationRequested)
             {
-                var result = consumer.Consume(stoppingToken);
-
-                if (result?.Message?.Value is null)
-                    continue;
-
-                if (logger.IsEnabled(LogLevel.Information))
+                try
                 {
-                    logger.LogInformation("Received Kafka message: {Message}", result.Message.Value);
-                }
+                    var result = consumer.Consume(stoppingToken);
 
-                await ProcessMessageAsync(result.Message.Value, stoppingToken);
-            }
-            catch (ConsumeException ex)
-            {
-                logger.LogError(ex, "Error consuming Kafka message");
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Unexpected error while processing Kafka message");
+                    if (result?.Message?.Value is null)
+                        continue;
+
+                    if (logger.IsEnabled(LogLevel.Information))
+                    {
+                        logger.LogInformation("Received Kafka message: {Message}", result.Message.Value);
+                    }
+
+                    await ProcessMessageAsync(result.Message.Value, stoppingToken);
+                }
+                catch (ConsumeException ex)
+                {
+                    logger.LogError(ex, "Error consuming Kafka message");
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    logger.LogError(ex, "Unexpected error while processing Kafka message");
+                }
             }
         }
-        consumer.Close();
+        finally
+        {
+            consumer.Close();
+            _producer?.Dispose();
+        }
     }
 
     private async Task ProcessMessageAsync(string messageJson, CancellationToken cancellationToken)
@@ -186,9 +200,27 @@ public class KafkaConsumerService(
         };
 
         await repository.InsertAsync(entity, ct);
+        if (!payload.MotionDetected)
+        {
+            return;
+        }
+
+        var motionMessage = new MotionDetectedMessage
+        {
+            RoomName = message.Name,
+            IsDetected = payload.MotionDetected,
+            Timestamp = message.Timestamp
+        };
+
+        var json = JsonSerializer.Serialize(motionMessage);
+        await _producer!.ProduceAsync(
+            _settings.MotionTopic,
+            new Message<Null, string> { Value = json },
+            ct);
+
         if (logger.IsEnabled(LogLevel.Information))
         {
-            logger.LogInformation("Saved Motion data for room {RoomId}", roomId);
+            logger.LogInformation("Saved Motion data for room {RoomId} and published to {Topic}", roomId, _settings.MotionTopic);
         }
     }
 
