@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ComponentType, type SVGProps } from "react";
+import { MetricTrendChart, SeriesTrendChart, type SeriesTrendPoint, type TrendPoint } from "../components/MetricTrendChart";
 import {
-  MetricTrendChart,
-  trendChartKey,
-  type TrendPoint,
-} from "../components/MetricTrendChart";
+  GridLayoutIcon,
+  ListLayoutIcon,
+  RefreshIcon,
+} from "../assets/icons";
 import {
   ChartsGridSkeleton,
   chartsLayoutClassName,
@@ -14,7 +15,14 @@ import {
   TableSkeleton,
   type ChartsLayout,
 } from "../components/DashboardSkeleton";
+import { useRooms } from "../hooks/useRooms";
 import { graphqlClient } from "../lib/graphql-client";
+import {
+  formatChartTime,
+  formatNumber,
+  formatTimestamp,
+  formatTime,
+} from "../lib/format";
 import {
   appendNewById,
   buildRoomNameMap,
@@ -34,56 +42,20 @@ import type {
   AggregateByRoomResponse,
   AirQualitiesQueryResponse,
   AirQuality,
-  Room,
+  EnergiesQueryResponse,
+  Energy,
   RoomAggregation,
-  RoomsQueryResponse,
 } from "../types";
-import { AGGREGATE_BY_ROOM, AIR_QUERY, ROOMS_QUERY } from "../types/graphql";
-
-const AIR_FETCH_LIMIT = 100;
-const AIR_POLL_LIMIT = 25;
-const TABLE_ROW_LIMIT = 12;
-
-const CHART_TIME_RANGES: { label: string; minutes: ChartTimeRangeMinutes }[] = [
-  { label: "Last 5 minutes", minutes: 5 },
-  { label: "Last 15 minutes", minutes: 15 },
-  { label: "Last 30 minutes", minutes: 30 },
-  { label: "All time", minutes: null },
-];
-
-const REFRESH_INTERVAL_UNITS: { value: RefreshIntervalUnit; label: string }[] =
-  [
-    { value: "seconds", label: "Seconds" },
-    { value: "minutes", label: "Minutes" },
-    { value: "hours", label: "Hours" },
-  ];
-
-const METRIC_CHARTS = [
-  {
-    suffix: "co2",
-    title: "CO₂ (ppm)",
-    dataKey: "avgCo2" as const,
-    seriesName: "CO₂",
-    stroke: "#2563eb",
-    unit: " ppm",
-  },
-  {
-    suffix: "pm25",
-    title: "PM2.5 (µg/m³)",
-    dataKey: "avgPm25" as const,
-    seriesName: "PM2.5",
-    stroke: "#059669",
-    unit: " µg/m³",
-  },
-  {
-    suffix: "humidity",
-    title: "Humidity (%)",
-    dataKey: "avgHumidity" as const,
-    seriesName: "Humidity",
-    stroke: "#d97706",
-    unit: "%",
-  },
-] as const;
+import { AGGREGATE_BY_ROOM, AIR_QUERY, ENERGY_QUERY } from "../types/graphql";
+import {
+  AIR_METRIC_CHARTS,
+  CHART_TIME_RANGES,
+  DASHBOARD_LIMITS,
+  ENERGY_CHART,
+  METRIC_LABELS,
+  METRIC_UNITS,
+  REFRESH_INTERVAL_UNITS,
+} from "../types/constants";
 
 function ChartsLayoutToggle({
   layout,
@@ -92,30 +64,20 @@ function ChartsLayoutToggle({
   layout: ChartsLayout;
   onChange: (layout: ChartsLayout) => void;
 }) {
-  const options: { value: ChartsLayout; label: string; icon: ReactNode }[] =
-    [
+  const options: {
+    value: ChartsLayout;
+    label: string;
+    Icon: ComponentType<SVGProps<SVGSVGElement>>;
+  }[] = [
       {
         value: "grid",
         label: "Grid",
-        icon: (
-          <svg viewBox="0 0 24 24" fill="currentColor" className="size-4" aria-hidden>
-            <rect x="3" y="3" width="8" height="8" rx="1" />
-            <rect x="13" y="3" width="8" height="8" rx="1" />
-            <rect x="3" y="13" width="8" height="8" rx="1" />
-            <rect x="13" y="13" width="8" height="8" rx="1" />
-          </svg>
-        ),
+        Icon: GridLayoutIcon,
       },
       {
         value: "list",
         label: "List",
-        icon: (
-          <svg viewBox="0 0 24 24" fill="currentColor" className="size-4" aria-hidden>
-            <rect x="3" y="4" width="18" height="4" rx="1" />
-            <rect x="3" y="10" width="18" height="4" rx="1" />
-            <rect x="3" y="16" width="18" height="4" rx="1" />
-          </svg>
-        ),
+        Icon: ListLayoutIcon,
       },
     ];
 
@@ -140,39 +102,13 @@ function ChartsLayoutToggle({
                 : "text-slate-600 hover:bg-slate-50"
             }`}
           >
-            {option.icon}
+            <option.Icon className="ui-icon-sm" aria-hidden />
             <span>{option.label}</span>
           </button>
         );
       })}
     </div>
   );
-}
-
-function formatNumber(value: number | null | undefined, decimals = 1): string {
-  if (value == null) return "—";
-  return value.toFixed(decimals);
-}
-
-function formatTimestamp(ts: string): string {
-  try {
-    return new Date(ts).toLocaleString();
-  } catch {
-    return ts;
-  }
-}
-
-function formatChartTime(ts: string): string {
-  try {
-    return new Date(ts).toLocaleString(undefined, {
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  } catch {
-    return ts;
-  }
 }
 
 function roomLabel(r: RoomAggregation): string {
@@ -190,9 +126,18 @@ function airToTrendPoints(readings: AirQuality[]): TrendPoint[] {
   }));
 }
 
+function energyToTrendPoints(readings: Energy[]): SeriesTrendPoint[] {
+  return sortByTimestampAsc(readings).map((row) => ({
+    time: formatChartTime(row.timestamp),
+    bucketKey: row.id,
+    value: row.amount,
+  }));
+}
+
 export function Dashboard() {
   const [aggregations, setAggregations] = useState<RoomAggregation[]>([]);
   const [recentAir, setRecentAir] = useState<AirQuality[]>([]);
+  const [, setRecentEnergy] = useState<Energy[]>([]);
   const [airTotal, setAirTotal] = useState(0);
   const [chartRangeMinutes, setChartRangeMinutes] =
     useState<ChartTimeRangeMinutes>(5);
@@ -205,29 +150,12 @@ export function Dashboard() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const [rooms, setRooms] = useState<Room[]>([]);
-  const [chartRevision, setChartRevision] = useState(0);
+  const rooms = useRooms();
   const [metricTrendData, setMetricTrendData] = useState<TrendPoint[]>([]);
+  const [energyTrendData, setEnergyTrendData] = useState<SeriesTrendPoint[]>(
+    [],
+  );
   const [chartsLayout, setChartsLayout] = useState<ChartsLayout>("grid");
-
-  useEffect(() => {
-    setChartRevision((n) => n + 1);
-  }, [chartsLayout]);
-
-  useEffect(() => {
-    async function loadRooms() {
-      try {
-        const data = await graphqlClient.request<RoomsQueryResponse>(
-          ROOMS_QUERY,
-          { pagination: { offset: 0, limit: 500 } },
-        );
-        setRooms(data.rooms.items);
-      } catch (e) {
-        console.error("Failed to load rooms:", e);
-      }
-    }
-    void loadRooms();
-  }, []);
 
   const roomNameById = useMemo(() => {
     const map = buildRoomNameMap(rooms);
@@ -250,12 +178,12 @@ export function Dashboard() {
           ...(selectedRoomId ? { roomId: selectedRoomId } : {}),
         };
 
-        const airVariables = {
-          pagination: {
-            offset: 0,
-            limit: mode === "replace" ? AIR_FETCH_LIMIT : AIR_POLL_LIMIT,
-          },
-          filter: sensorFilter,
+        const pagination = {
+          offset: 0,
+          limit:
+            mode === "replace"
+              ? DASHBOARD_LIMITS.sensorFetch
+              : DASHBOARD_LIMITS.sensorPoll,
         };
 
         const aggVariables = {
@@ -263,19 +191,28 @@ export function Dashboard() {
           ...(startTime ? { startTime } : {}),
         };
 
-        const [aggResult, airResult] = await Promise.all([
+        const [aggResult, airResult, energyResult] = await Promise.all([
           graphqlClient.request<AggregateByRoomResponse>(
             AGGREGATE_BY_ROOM,
             aggVariables,
           ),
-          graphqlClient.request<AirQualitiesQueryResponse>(
-            AIR_QUERY,
-            airVariables,
-          ),
+          graphqlClient.request<AirQualitiesQueryResponse>(AIR_QUERY, {
+            filter: sensorFilter,
+            pagination,
+          }),
+          graphqlClient.request<EnergiesQueryResponse>(ENERGY_QUERY, {
+            filter: sensorFilter,
+            pagination,
+          }),
         ]);
 
         const incomingAir = filterByTimeRange(
           sortByTimestampDesc(airResult.airQualities.items),
+          chartRangeMinutes,
+        );
+
+        const incomingEnergy = filterByTimeRange(
+          sortByTimestampDesc(energyResult.energies.items),
           chartRangeMinutes,
         );
 
@@ -287,26 +224,40 @@ export function Dashboard() {
           setMetricTrendData(airToTrendPoints(readings));
         };
 
+        const applyEnergyToCharts = (readings: Energy[]) => {
+          setEnergyTrendData(energyToTrendPoints(readings));
+        };
+
         if (mode === "replace") {
           setRecentAir(incomingAir);
+          setRecentEnergy(incomingEnergy);
           applyAirToCharts(incomingAir);
-          setChartRevision((n) => n + 1);
+          applyEnergyToCharts(incomingEnergy);
         } else {
-          let airChanged = false;
           setRecentAir((prev) => {
-            const merged = filterByTimeRange(
-              appendNewById(prev, incomingAir, AIR_FETCH_LIMIT),
-              chartRangeMinutes,
+            const appended = appendNewById(
+              prev,
+              incomingAir,
+              DASHBOARD_LIMITS.sensorFetch,
             );
-            if (merged.length !== prev.length) {
-              airChanged = true;
+            const merged = filterByTimeRange(appended, chartRangeMinutes);
+            if (appended !== prev) {
               applyAirToCharts(merged);
             }
             return merged;
           });
-          if (airChanged) {
-            setChartRevision((n) => n + 1);
-          }
+          setRecentEnergy((prev) => {
+            const appended = appendNewById(
+              prev,
+              incomingEnergy,
+              DASHBOARD_LIMITS.sensorFetch,
+            );
+            const merged = filterByTimeRange(appended, chartRangeMinutes);
+            if (appended !== prev) {
+              applyEnergyToCharts(merged);
+            }
+            return merged;
+          });
         }
       } catch (err) {
         console.error("Failed to fetch dashboard data:", err);
@@ -363,7 +314,7 @@ export function Dashboard() {
     () =>
       sortByTimestampDesc(
         filterByTimeRange(recentAir, chartRangeMinutes),
-      ).slice(0, TABLE_ROW_LIMIT),
+      ).slice(0, DASHBOARD_LIMITS.tableRows),
     [recentAir, chartRangeMinutes],
   );
 
@@ -380,7 +331,7 @@ export function Dashboard() {
     return <DashboardBootstrapSkeleton />;
   }
 
-  if (error && metricTrendData.length === 0 && aggregations.length === 0) {
+  if (error && metricTrendData.length === 0 && energyTrendData.length === 0 && aggregations.length === 0) {
     return (
       <div
         className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
@@ -419,28 +370,14 @@ export function Dashboard() {
               </>
             ) : (
               <>
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  className="size-4"
-                  aria-hidden
-                >
-                  <path d="M21 12a9 9 0 1 1-2.64-6.36" strokeLinecap="round" />
-                  <path
-                    d="M21 3v6h-6"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
+                <RefreshIcon className="ui-icon-sm" aria-hidden />
                 Refresh now
               </>
             )}
           </button>
           {lastUpdated && (
             <span className="text-sm text-slate-500">
-              Updated {lastUpdated.toLocaleTimeString()}
+              Updated {formatTime(lastUpdated)}
             </span>
           )}
         </div>
@@ -459,7 +396,7 @@ export function Dashboard() {
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div className="min-w-0">
             <h2 className="text-lg font-semibold text-slate-800">
-              Air quality trends
+              Air quality & energy trends
               {selectedRoom ? (
                 <span className="ml-2 text-base font-normal text-blue-600">
                   — {roomLabel(selectedRoom)}
@@ -478,7 +415,7 @@ export function Dashboard() {
             <label className="flex flex-col gap-1 text-sm text-slate-600">
               <span>Time range</span>
               <select
-                className="min-w-[10rem] rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                className="ui-select-time"
                 value={chartRangeMinutes ?? ""}
                 onChange={(e) => {
                   const raw = e.target.value;
@@ -519,11 +456,11 @@ export function Dashboard() {
                     setRefreshIntervalValue(next.value);
                     setRefreshIntervalUnit(next.unit);
                   }}
-                  className="w-24 rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                  className="ui-input-narrow"
                   aria-label="Refresh interval amount"
                 />
                 <select
-                  className="min-w-[7rem] rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                  className="ui-select-unit"
                   value={refreshIntervalUnit}
                   onChange={(e) => {
                     const unit = e.target.value as RefreshIntervalUnit;
@@ -550,7 +487,7 @@ export function Dashboard() {
         <ContentLoadingOverlay
           loading={contentLoading}
           skeleton={<RoomPillsSkeleton />}
-          minHeight="min-h-[2.5rem]"
+          minHeight="ui-section-min-xs"
         >
           <div className="flex flex-wrap gap-2">
             <button
@@ -584,17 +521,17 @@ export function Dashboard() {
         <ContentLoadingOverlay
           loading={contentLoading}
           skeleton={<ChartsGridSkeleton layout={chartsLayout} />}
-          minHeight="min-h-[24rem]"
+          minHeight="ui-section-min-xl"
         >
-          {metricTrendData.length === 0 ? (
+          {metricTrendData.length === 0 && energyTrendData.length === 0 ? (
             <p className="rounded-xl border border-dashed border-slate-200 bg-white p-8 text-center text-slate-500">
-              No air quality readings in {chartRangeLabel.toLowerCase()}
+              No sensor readings in {chartRangeLabel.toLowerCase()}
               {selectedRoom ? ` for ${roomLabel(selectedRoom)}` : ""}. Ingest
               sensor data or widen the time range.
             </p>
           ) : (
             <div className={chartsLayoutClassName(chartsLayout)}>
-              {METRIC_CHARTS.map((chart) => (
+              {AIR_METRIC_CHARTS.map((chart) => (
                 <div key={chart.suffix} className="min-w-0">
                   <MetricTrendChart
                     title={chart.title}
@@ -603,14 +540,21 @@ export function Dashboard() {
                     seriesName={chart.seriesName}
                     stroke={chart.stroke}
                     unit={chart.unit}
-                    chartKey={trendChartKey(
-                      chartRevision,
-                      metricTrendData,
-                      `${chart.suffix}-${chartsLayout}`,
-                    )}
+                    layoutKey={`${chart.suffix}-${chartsLayout}`}
                   />
                 </div>
               ))}
+              <div className="min-w-0">
+                <SeriesTrendChart
+                  title={ENERGY_CHART.title}
+                  data={energyTrendData}
+                  seriesName={ENERGY_CHART.seriesName}
+                  stroke={ENERGY_CHART.stroke}
+                  unit={ENERGY_CHART.unit}
+                  layoutKey={`${ENERGY_CHART.suffix}-${chartsLayout}`}
+                  decimals={ENERGY_CHART.decimals}
+                />
+              </div>
             </div>
           )}
         </ContentLoadingOverlay>
@@ -628,7 +572,7 @@ export function Dashboard() {
         <ContentLoadingOverlay
           loading={contentLoading}
           skeleton={<RoomCardsSkeleton />}
-          minHeight="min-h-[16rem]"
+          minHeight="ui-section-min-lg"
         >
           {aggregations.length === 0 ? (
             <p className="rounded-xl border border-dashed border-slate-200 bg-white p-8 text-center text-slate-500">
@@ -665,34 +609,41 @@ export function Dashboard() {
                     <dl className="mt-3 grid grid-cols-2 gap-2 text-sm">
                       <div>
                         <dt className="text-xs uppercase text-slate-500">
-                          Avg CO₂
+                          Avg {METRIC_LABELS.co2}
                         </dt>
                         <dd className="font-medium">
-                          {formatNumber(room.avgCo2)} ppm
+                          {formatNumber(room.avgCo2)}
+                          {METRIC_UNITS.co2}
                         </dd>
                       </div>
                       <div>
                         <dt className="text-xs uppercase text-slate-500">
-                          Avg PM2.5
+                          Avg {METRIC_LABELS.pm25}
                         </dt>
                         <dd className="font-medium">
-                          {formatNumber(room.avgPm25)} µg/m³
+                          {formatNumber(room.avgPm25)}
+                          {METRIC_UNITS.pm25}
                         </dd>
                       </div>
                       <div>
                         <dt className="text-xs uppercase text-slate-500">
-                          Humidity
+                          {METRIC_LABELS.humidity}
                         </dt>
                         <dd className="font-medium">
-                          {formatNumber(room.avgHumidity)}%
+                          {formatNumber(room.avgHumidity)}
+                          {METRIC_UNITS.humidity}
                         </dd>
                       </div>
                       <div>
                         <dt className="text-xs uppercase text-slate-500">
-                          Energy
+                          {METRIC_LABELS.energy}
                         </dt>
                         <dd className="font-medium">
-                          {formatNumber(room.avgEnergy, 2)} kWh
+                          {formatNumber(
+                            room.avgEnergy,
+                            DASHBOARD_LIMITS.energyCardDecimals,
+                          )}
+                          {METRIC_UNITS.energy}
                         </dd>
                       </div>
                       <div>
@@ -729,7 +680,7 @@ export function Dashboard() {
         <ContentLoadingOverlay
           loading={contentLoading}
           skeleton={<TableSkeleton />}
-          minHeight="min-h-[14rem]"
+          minHeight="ui-section-min-md"
         >
           <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
             {tableRows.length === 0 ? (
@@ -738,14 +689,14 @@ export function Dashboard() {
               </p>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[640px] text-left text-sm">
+                <table className="ui-data-table-air">
                   <thead className="border-b border-slate-200 bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
                     <tr>
                       <th className="px-4 py-3">Room</th>
                       <th className="px-4 py-3">Time</th>
-                      <th className="px-4 py-3">PM2.5</th>
-                      <th className="px-4 py-3">CO₂</th>
-                      <th className="px-4 py-3">Humidity</th>
+                      <th className="px-4 py-3">{METRIC_LABELS.pm25}</th>
+                      <th className="px-4 py-3">{METRIC_LABELS.co2}</th>
+                      <th className="px-4 py-3">{METRIC_LABELS.humidity}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -772,5 +723,3 @@ export function Dashboard() {
     </div>
   );
 }
-
-export default Dashboard;

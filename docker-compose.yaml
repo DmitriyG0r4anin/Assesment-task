@@ -123,5 +123,21 @@ services:
       - data-processor
     restart: unless-stopped
 
+  frontend:
+    hostname: frontend
+    container_name: frontend
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_GRAPHQL_URL: /graphql
+        VITE_NOTIFICATIONS_URL: /notifications/motionHub
+    ports:
+      - "3000:80"
+    depends_on:
+      - graphql-api-gateway
+      - notifications-service
+    restart: unless-stopped
+
 volumes:
   mongodb_data:

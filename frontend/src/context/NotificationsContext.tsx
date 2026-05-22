@@ -11,19 +11,20 @@ import {
 import { HubConnection, HubConnectionState } from "@microsoft/signalr";
 import { toast } from "sonner";
 import {
+  clearMotionEvents,
+  pushMotionEvent,
+} from "../lib/motion-events";
+import { formatTimestamp, parseTimestamp } from "../lib/format";
+import {
   createSignalRConnection,
   startConnection,
 } from "../lib/signalr-client";
 import type { MotionEvent } from "../types";
 
-type ConnectionStatus = "disconnected" | "connecting" | "connected";
-
-const MAX_EVENTS = 100;
+export type ConnectionStatus = "disconnected" | "connecting" | "connected";
 
 interface NotificationsContextValue {
   connectionStatus: ConnectionStatus;
-  events: MotionEvent[];
-  clearEvents: () => void;
   reconnect: () => void;
 }
 
@@ -41,36 +42,34 @@ function parseMotionPayload(data: unknown): MotionEvent | null {
     (raw.isDetected as boolean) ?? (raw.IsDetected as boolean) ?? false;
   let timestamp =
     (raw.timestamp as string) ?? (raw.Timestamp as string) ?? undefined;
-  if (typeof timestamp === "string" && !timestamp.includes("T")) {
-    timestamp = new Date(timestamp).toISOString();
+  if (timestamp) {
+    timestamp = parseTimestamp(timestamp).toISOString();
+  } else {
+    timestamp = new Date().toISOString();
   }
-  if (!timestamp) timestamp = new Date().toISOString();
   return { roomName, isDetected, timestamp };
 }
 
+function handleMotionEvent(event: MotionEvent): void {
+  pushMotionEvent(event);
+  toast.info(
+    event.isDetected
+      ? `Motion: ${event.roomName}`
+      : `Clear: ${event.roomName}`,
+    {
+      description: formatTimestamp(event.timestamp),
+    },
+  );
+}
+
 export function NotificationsProvider({ children }: { children: ReactNode }) {
-  const [events, setEvents] = useState<MotionEvent[]>([]);
   const [connectionStatus, setConnectionStatus] =
     useState<ConnectionStatus>("disconnected");
   const connectionRef = useRef<HubConnection | null>(null);
-
-  const handleMotionEvent = useCallback((event: MotionEvent) => {
-    setEvents((prev) => {
-      const next = [event, ...prev];
-      return next.length > MAX_EVENTS ? next.slice(0, MAX_EVENTS) : next;
-    });
-
-    toast.info(
-      event.isDetected
-        ? `Motion: ${event.roomName}`
-        : `Clear: ${event.roomName}`,
-      {
-        description: new Date(event.timestamp).toLocaleString(),
-      },
-    );
-  }, []);
+  const disposedRef = useRef(false);
 
   useEffect(() => {
+    disposedRef.current = false;
     const connection = createSignalRConnection();
     connectionRef.current = connection;
 
@@ -92,27 +91,30 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     });
 
     setConnectionStatus("connecting");
-    void startConnection(connection).then(() => {
-      if (connection.state === HubConnectionState.Connected) {
+    void startConnection(connection, () => disposedRef.current).then(() => {
+      if (
+        !disposedRef.current &&
+        connection.state === HubConnectionState.Connected
+      ) {
         setConnectionStatus("connected");
       }
     });
 
     return () => {
+      disposedRef.current = true;
       void connection.stop();
     };
-  }, [handleMotionEvent]);
-
-  const clearEvents = useCallback(() => {
-    setEvents([]);
   }, []);
 
   const reconnect = useCallback(() => {
     const connection = connectionRef.current;
     if (!connection) return;
     setConnectionStatus("connecting");
-    void startConnection(connection).then(() => {
-      if (connection.state === HubConnectionState.Connected) {
+    void startConnection(connection, () => disposedRef.current).then(() => {
+      if (
+        !disposedRef.current &&
+        connection.state === HubConnectionState.Connected
+      ) {
         setConnectionStatus("connected");
       }
     });
@@ -121,11 +123,9 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   const value = useMemo(
     () => ({
       connectionStatus,
-      events,
-      clearEvents,
       reconnect,
     }),
-    [connectionStatus, events, clearEvents, reconnect],
+    [connectionStatus, reconnect],
   );
 
   return (
@@ -138,7 +138,11 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
 export function useNotifications(): NotificationsContextValue {
   const ctx = useContext(NotificationsContext);
   if (!ctx) {
-    throw new Error("useNotifications must be used within NotificationsProvider");
+    throw new Error(
+      "useNotifications must be used within NotificationsProvider",
+    );
   }
   return ctx;
 }
+
+export { clearMotionEvents };

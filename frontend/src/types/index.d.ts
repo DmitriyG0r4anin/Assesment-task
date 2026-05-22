@@ -79,16 +79,6 @@ export interface RoomAggregation {
   totalCount: number;
 }
 
-export interface TimeAggregation {
-  timestamp: string;
-  avgCo2: number | null;
-  avgPm25: number | null;
-  avgHumidity: number | null;
-  avgEnergy: number | null;
-  motionCount: number;
-  totalCount: number;
-}
-
 export interface MotionEvent {
   roomName: string;
   isDetected: boolean;
@@ -97,10 +87,6 @@ export interface MotionEvent {
 
 export interface AggregateByRoomResponse {
   aggregateByRoom: RoomAggregation[];
-}
-
-export interface AggregateByTimeResponse {
-  aggregateByTime: TimeAggregation[];
 }
 
 export interface AirQualitiesQueryResponse {

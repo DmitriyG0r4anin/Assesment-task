@@ -1,8 +1,18 @@
-import { useMemo } from "react";
-import { useNotifications } from "../context/NotificationsContext";
+import { useMemo, useSyncExternalStore } from "react";
+import {
+  clearMotionEvents,
+  getMotionEventsSnapshot,
+  subscribeMotionEvents,
+} from "../lib/motion-events";
+import {
+  formatDateTime,
+  formatTime,
+} from "../lib/format";
+import {
+  useNotifications,
+  type ConnectionStatus,
+} from "../context/NotificationsContext";
 import type { MotionEvent } from "../types";
-
-type ConnectionStatus = "disconnected" | "connecting" | "connected";
 
 interface RoomStatus {
   roomName: string;
@@ -10,65 +20,46 @@ interface RoomStatus {
   lastSeen: string;
 }
 
-function formatTime(iso: string): string {
-  try {
-    return new Date(iso).toLocaleTimeString(undefined, {
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-    });
-  } catch {
-    return iso;
-  }
-}
-
-function formatDateTime(iso: string): string {
-  try {
-    return new Date(iso).toLocaleString(undefined, {
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-    });
-  } catch {
-    return iso;
-  }
-}
-
 function eventKey(event: MotionEvent, index: number): string {
   return `${event.roomName}-${event.timestamp}-${index}`;
 }
 
+const STATUS_LABEL: Record<ConnectionStatus, string> = {
+  connected: "Connected",
+  connecting: "Connecting…",
+  disconnected: "Disconnected",
+};
+
 export function Motion() {
-  const { connectionStatus, events, clearEvents, reconnect } =
-    useNotifications();
+  const { connectionStatus, reconnect } = useNotifications();
+  const events = useSyncExternalStore(
+    subscribeMotionEvents,
+    getMotionEventsSnapshot,
+  );
 
   const roomStatuses = useMemo(() => {
     const map = new Map<string, RoomStatus>();
-    for (const e of events) {
-      if (!map.has(e.roomName)) {
-        map.set(e.roomName, {
-          roomName: e.roomName,
-          isDetected: e.isDetected,
-          lastSeen: e.timestamp,
+    for (const event of events) {
+      if (!map.has(event.roomName)) {
+        map.set(event.roomName, {
+          roomName: event.roomName,
+          isDetected: event.isDetected,
+          lastSeen: event.timestamp,
         });
       }
     }
     return map;
   }, [events]);
 
-  const statusLabel: Record<ConnectionStatus, string> = {
-    connected: "Connected",
-    connecting: "Connecting…",
-    disconnected: "Disconnected",
-  };
-
-  const sortedRooms = Array.from(roomStatuses.values()).sort((a, b) =>
-    a.roomName.localeCompare(b.roomName),
+  const sortedRooms = useMemo(
+    () =>
+      Array.from(roomStatuses.values()).sort((a, b) =>
+        a.roomName.localeCompare(b.roomName),
+      ),
+    [roomStatuses],
   );
 
-  const activeRoomCount = sortedRooms.filter((r) => r.isDetected).length;
+  const activeRoomCount = sortedRooms.filter((room) => room.isDetected).length;
 
   return (
     <div className="space-y-8">
@@ -77,7 +68,8 @@ export function Motion() {
           Motion tracker
         </h1>
         <p className="mt-1 text-slate-600">
-          Live feed from the notifications service (SignalR). Toasts appear app-wide on each event.
+          Live feed from the notifications service (SignalR). Toasts appear
+          app-wide on each event.
         </p>
       </header>
 
@@ -87,14 +79,14 @@ export function Motion() {
             <span
               className={`size-2.5 shrink-0 rounded-full ${
                 connectionStatus === "connected"
-                  ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]"
+                  ? "ui-status-dot-connected"
                   : connectionStatus === "connecting"
                     ? "animate-pulse bg-amber-500"
-                    : "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]"
+                    : "ui-status-dot-disconnected"
               }`}
               aria-hidden
             />
-            {statusLabel[connectionStatus]}
+            {STATUS_LABEL[connectionStatus]}
           </div>
           <div className="flex flex-wrap items-center gap-3 text-sm text-slate-600">
             <span>
@@ -117,8 +109,8 @@ export function Motion() {
             {events.length > 0 && (
               <button
                 type="button"
-                onClick={clearEvents}
-                className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                onClick={clearMotionEvents}
+                className="ui-btn-secondary"
               >
                 Clear
               </button>
@@ -143,7 +135,7 @@ export function Motion() {
                 : "Connect to start receiving events."}
             </div>
           ) : (
-            <ul className="max-h-[520px] space-y-2 overflow-y-auto pr-1">
+            <ul className="ui-scroll-list">
               {events.map((event, index) => (
                 <li
                   key={eventKey(event, index)}
@@ -189,7 +181,7 @@ export function Motion() {
               No room data yet.
             </div>
           ) : (
-            <div className="grid max-h-[520px] grid-cols-1 gap-3 overflow-y-auto sm:grid-cols-2">
+            <div className="ui-scroll-grid">
               {sortedRooms.map((room) => (
                 <div
                   key={room.roomName}
@@ -225,5 +217,3 @@ export function Motion() {
     </div>
   );
 }
-
-export default Motion;

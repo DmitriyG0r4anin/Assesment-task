@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ROOMS_QUERY, AIR_QUERY, ENERGY_QUERY, MOTIONS_QUERY } from "../types/graphql";
+import { useRooms } from "../hooks/useRooms";
+import { formatTimestamp } from "../lib/format";
+import { AIR_QUERY, ENERGY_QUERY, MOTIONS_QUERY } from "../types/graphql";
 import { graphqlClient } from "../lib/graphql-client";
-import { resolveRoomName, sortByTimestampDesc } from "../lib/metrics";
+import { buildRoomNameMap, resolveRoomName, sortByTimestampDesc } from "../lib/metrics";
 import type {
   AirQualitiesQueryResponse,
   AirQuality,
@@ -10,34 +12,29 @@ import type {
   Motion,
   MotionFilter,
   MotionsQueryResponse,
-  RoomsQueryResponse,
   SensorFilter,
 } from "../types";
 
 const PAGE_SIZE = 15;
+const TABS = [
+  { id: "air" as const, label: "Air quality" },
+  { id: "energy" as const, label: "Energy" },
+  { id: "motion" as const, label: "Motion" },
+];
 
-type Tab = "air" | "energy" | "motion";
-
-function formatTimestamp(ts: string): string {
-  try {
-    return new Date(ts).toLocaleString();
-  } catch {
-    return ts;
-  }
-}
+type Tab = (typeof TABS)[number]["id"];
 
 function toIsoOrUndefined(value: string): string | undefined {
   if (!value) return undefined;
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return undefined;
-  return d.toISOString();
+  // datetime-local values are in the user's local timezone
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return undefined;
+  return date.toISOString();
 }
 
 export function Parameters() {
   const [tab, setTab] = useState<Tab>("air");
-  const [roomOptions, setRoomOptions] = useState<{ id: string; name: string }[]>(
-    [],
-  );
+  const roomOptions = useRooms();
 
   const [draftRoomId, setDraftRoomId] = useState("");
   const [draftStart, setDraftStart] = useState("");
@@ -57,21 +54,6 @@ export function Parameters() {
   const [offset, setOffset] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    async function loadRooms() {
-      try {
-        const data = await graphqlClient.request<RoomsQueryResponse>(
-          ROOMS_QUERY,
-          { pagination: { offset: 0, limit: 500 } },
-        );
-        setRoomOptions(data.rooms.items);
-      } catch (e) {
-        console.error(e);
-      }
-    }
-    void loadRooms();
-  }, []);
 
   const buildSensorFilter = useCallback((): SensorFilter | undefined => {
     const timestampStart = toIsoOrUndefined(appliedStart);
@@ -178,27 +160,12 @@ export function Parameters() {
   };
 
   const roomNameById = useMemo(
-    () => new Map(roomOptions.map((r) => [r.id, r.name.trim() || r.id])),
+    () => buildRoomNameMap(roomOptions),
     [roomOptions],
   );
 
   const currentPage = Math.floor(offset / PAGE_SIZE) + 1;
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
-
-  const tabBtn = (id: Tab, label: string) => (
-    <button
-      type="button"
-      key={id}
-      onClick={() => selectTab(id)}
-      className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
-        tab === id
-          ? "bg-blue-600 text-white shadow"
-          : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-      }`}
-    >
-      {label}
-    </button>
-  );
 
   return (
     <div className="space-y-8">
@@ -212,9 +179,20 @@ export function Parameters() {
       </header>
 
       <div className="flex flex-wrap gap-2">
-        {tabBtn("air", "Air quality")}
-        {tabBtn("energy", "Energy")}
-        {tabBtn("motion", "Motion")}
+        {TABS.map(({ id, label }) => (
+          <button
+            type="button"
+            key={id}
+            onClick={() => selectTab(id)}
+            className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
+              tab === id
+                ? "bg-blue-600 text-white shadow"
+                : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
       </div>
 
       <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -441,5 +419,3 @@ export function Parameters() {
     </div>
   );
 }
-
-export default Parameters;

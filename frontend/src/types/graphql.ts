@@ -19,47 +19,6 @@ export const AGGREGATE_BY_ROOM = gql`
   }
 `;
 
-export const AGGREGATE_BY_TIME = gql`
-  query AggregateByTime(
-    $roomId: String
-    $startTime: DateTime
-    $endTime: DateTime
-    $intervalMinutes: Int
-  ) {
-    aggregateByTime(
-      roomId: $roomId
-      startTime: $startTime
-      endTime: $endTime
-      intervalMinutes: $intervalMinutes
-    ) {
-      timestamp
-      avgCo2
-      avgPm25
-      avgHumidity
-      avgEnergy
-      motionCount
-      totalCount
-    }
-  }
-`;
-
-export const RECENT_AIR = gql`
-  query RecentAirQualities($pagination: PaginationInput) {
-    airQualities(pagination: $pagination) {
-      items {
-        id
-        roomId
-        timestamp
-        pm25
-        co2
-        humidity
-      }
-      totalCount
-      hasNextPage
-    }
-  }
-`;
-
 export const ROOMS_QUERY = gql`
   query RoomsForFilter($pagination: PaginationInput) {
     rooms(pagination: $pagination) {

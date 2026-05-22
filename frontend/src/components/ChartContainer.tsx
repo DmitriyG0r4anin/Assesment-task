@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { memo, useEffect, useRef, useState, type ReactNode } from "react";
 
 const DEFAULT_HEIGHT = 256;
 
-export function ChartContainer({
+export const ChartContainer = memo(function ChartContainer({
   children,
   height = DEFAULT_HEIGHT,
 }: {
@@ -25,11 +25,7 @@ export function ChartContainer({
     measure();
     const observer = new ResizeObserver(() => measure());
     observer.observe(el);
-    window.addEventListener("resize", measure);
-    return () => {
-      observer.disconnect();
-      window.removeEventListener("resize", measure);
-    };
+    return () => observer.disconnect();
   }, []);
 
   return (
@@ -39,8 +35,10 @@ export function ChartContainer({
       style={{ height }}
     >
       {width > 0 ? (
-        <div className="max-w-full overflow-hidden">{children({ width, height })}</div>
+        <div className="max-w-full overflow-hidden">
+          {children({ width, height })}
+        </div>
       ) : null}
     </div>
   );
-}
+});

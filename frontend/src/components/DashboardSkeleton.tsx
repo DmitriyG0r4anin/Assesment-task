@@ -32,6 +32,7 @@ export function ChartsGridSkeleton({ layout = "grid" }: { layout?: ChartsLayout 
       <ChartCardSkeleton />
       <ChartCardSkeleton />
       <ChartCardSkeleton />
+      <ChartCardSkeleton />
     </div>
   );
 }
@@ -118,7 +119,7 @@ export function ContentLoadingOverlay({
   loading,
   skeleton,
   children,
-  minHeight = "min-h-[12rem]",
+  minHeight = "ui-section-min-sm",
 }: {
   loading: boolean;
   skeleton: ReactNode;
