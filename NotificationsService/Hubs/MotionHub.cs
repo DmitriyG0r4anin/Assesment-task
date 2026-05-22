@@ -8,8 +8,6 @@ public class MotionHub(ILogger<MotionHub> logger) : Hub
     {
         await base.OnConnectedAsync();
 
-        await base.Clients.All.SendAsync($"Connected {Context.ConnectionId}");
-
         if (logger.IsEnabled(LogLevel.Information))
         {
             logger.LogInformation("Connected {ConnectionId}", Context.ConnectionId);
