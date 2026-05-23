@@ -1,6 +1,16 @@
 import type { ReactNode } from "react";
+import {
+  SKELETON_PILL_IDS,
+  SKELETON_ROOM_CARD_IDS,
+  SKELETON_ROOM_STAT_IDS,
+  SKELETON_TABLE_HEADER_IDS,
+} from "../types/constants";
 
-function SkeletonBar({ className = "" }: { className?: string }) {
+function skeletonRowIds(count: number, prefix: string): string[] {
+  return Array.from({ length: count }, (_, n) => `${prefix}-row-${n + 1}`);
+}
+
+function SkeletonBar({ className = "" }: Readonly<{ className?: string }>) {
   return (
     <div
       className={`animate-pulse rounded-md bg-slate-200/90 ${className}`}
@@ -26,7 +36,7 @@ export function chartsLayoutClassName(layout: ChartsLayout): string {
     : "flex min-w-0 w-full max-w-full flex-col gap-6";
 }
 
-export function ChartsGridSkeleton({ layout = "grid" }: { layout?: ChartsLayout }) {
+export function ChartsGridSkeleton({ layout = "grid" }: Readonly<{ layout?: ChartsLayout }>) {
   return (
     <div className={chartsLayoutClassName(layout)}>
       <ChartCardSkeleton />
@@ -40,8 +50,8 @@ export function ChartsGridSkeleton({ layout = "grid" }: { layout?: ChartsLayout 
 export function RoomPillsSkeleton() {
   return (
     <div className="flex flex-wrap gap-2">
-      {Array.from({ length: 5 }).map((_, i) => (
-        <SkeletonBar key={i} className="h-9 w-24 rounded-full" />
+      {SKELETON_PILL_IDS.map((id) => (
+        <SkeletonBar key={id} className="h-9 w-24 rounded-full" />
       ))}
     </div>
   );
@@ -50,15 +60,18 @@ export function RoomPillsSkeleton() {
 export function RoomCardsSkeleton() {
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      {Array.from({ length: 6 }).map((_, i) => (
+      {SKELETON_ROOM_CARD_IDS.map((cardId) => (
         <div
-          key={i}
+          key={cardId}
           className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
         >
           <SkeletonBar className="mb-3 h-5 w-28" />
           <div className="grid grid-cols-2 gap-2">
-            {Array.from({ length: 6 }).map((__, j) => (
-              <SkeletonBar key={j} className="h-10 w-full" />
+            {SKELETON_ROOM_STAT_IDS.map((statId) => (
+              <SkeletonBar
+                key={`${cardId}-${statId}`}
+                className="h-10 w-full"
+              />
             ))}
           </div>
         </div>
@@ -67,17 +80,19 @@ export function RoomCardsSkeleton() {
   );
 }
 
-export function TableSkeleton({ rows = 6 }: { rows?: number }) {
+export function TableSkeleton({ rows = 6 }: Readonly<{ rows?: number }>) {
+  const rowIds = skeletonRowIds(rows, "table");
+
   return (
     <div className="overflow-hidden rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
       <div className="mb-3 flex gap-4 border-b border-slate-100 pb-3">
-        {Array.from({ length: 5 }).map((_, i) => (
-          <SkeletonBar key={i} className="h-4 flex-1" />
+        {SKELETON_TABLE_HEADER_IDS.map((id) => (
+          <SkeletonBar key={id} className="h-4 flex-1" />
         ))}
       </div>
       <div className="space-y-3">
-        {Array.from({ length: rows }).map((_, i) => (
-          <SkeletonBar key={i} className="h-8 w-full" />
+        {rowIds.map((id) => (
+          <SkeletonBar key={id} className="h-8 w-full" />
         ))}
       </div>
     </div>
@@ -120,12 +135,12 @@ export function ContentLoadingOverlay({
   skeleton,
   children,
   minHeight = "ui-section-min-sm",
-}: {
+}: Readonly<{
   loading: boolean;
   skeleton: ReactNode;
   children: ReactNode;
   minHeight?: string;
-}) {
+}>) {
   return (
     <div className={`relative min-w-0 w-full max-w-full ${minHeight}`}>
       <div
