@@ -4,7 +4,7 @@ import tseslint from "typescript-eslint";
 import pluginReact from "eslint-plugin-react";
 
 export default tseslint.config(
-  { ignores: ["dist/**", "node_modules/**"] },
+  { ignores: ["dist/**", "node_modules/**", "coverage/**"] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
@@ -23,6 +23,15 @@ export default tseslint.config(
   {
     rules: {
       "react/react-in-jsx-scope": "off",
+    },
+  },
+  {
+    files: ["tests/**/*.{ts,tsx}"],
+    languageOptions: {
+      globals: {
+        ...globals.browser,
+        ...globals.vitest,
+      },
     },
   },
 );
