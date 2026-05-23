@@ -1,0 +1,79 @@
+@utility ui-control {
+  @apply rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20;
+}
+
+@utility ui-select-time {
+  @apply ui-control min-w-select-time;
+}
+
+@utility ui-select-unit {
+  @apply ui-control min-w-select-unit;
+}
+
+@utility ui-input-narrow {
+  @apply ui-control w-24;
+}
+
+@utility ui-scroll-panel {
+  @apply max-h-scroll overflow-y-auto;
+}
+
+@utility ui-scroll-list {
+  @apply ui-scroll-panel space-y-2 pr-1;
+}
+
+@utility ui-scroll-grid {
+  @apply ui-scroll-panel grid grid-cols-1 gap-3 sm:grid-cols-2;
+}
+
+@utility ui-data-table-air {
+  @apply w-full min-w-table-air text-left text-sm;
+}
+
+@utility ui-data-table {
+  @apply w-full min-w-table-default text-left text-sm;
+}
+
+@utility ui-status-dot-connected {
+  @apply bg-emerald-500 shadow-status-connected;
+}
+
+@utility ui-status-dot-disconnected {
+  @apply bg-red-500 shadow-status-disconnected;
+}
+
+@utility ui-btn-secondary {
+  @apply rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50;
+}
+
+@utility ui-btn-secondary-lg {
+  @apply rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50;
+}
+
+@utility ui-btn-secondary-disabled {
+  @apply ui-btn-secondary disabled:cursor-not-allowed disabled:opacity-40;
+}
+
+@utility ui-section-min-xs {
+  @apply min-h-section-xs;
+}
+
+@utility ui-section-min-sm {
+  @apply min-h-section-sm;
+}
+
+@utility ui-section-min-md {
+  @apply min-h-section-md;
+}
+
+@utility ui-section-min-lg {
+  @apply min-h-section-lg;
+}
+
+@utility ui-section-min-xl {
+  @apply min-h-section-xl;
+}
+
+@utility ui-icon-sm {
+  @apply size-4;
+}

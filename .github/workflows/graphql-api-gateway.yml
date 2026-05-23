@@ -47,3 +47,17 @@ jobs:
           
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+  docker:
+    name: Docker
+    runs-on: ubuntu-latest
+    needs: sonarqube
+    defaults:
+      run:
+        working-directory: GraphQLAPIGateway
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t graphql-api-gateway:ci .
