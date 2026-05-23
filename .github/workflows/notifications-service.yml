@@ -36,3 +36,17 @@ jobs:
       EXCLUDE_FROM_COVERAGE: "**/Program.cs, **/Models/*, **/Configuration/*, **/Serialization/*, **/Consumers/*, **/Hubs/*"
       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
       EXCLUDE_FROM_SONAR: "**/Dockerfile"
+
+  docker:
+    name: Docker
+    runs-on: ubuntu-latest
+    needs: analyze
+    defaults:
+      run:
+        working-directory: NotificationsService
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t notifications-service:ci .

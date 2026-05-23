@@ -1,16 +1,16 @@
-import { Outlet, Link, useLocation } from "react-router";
+import { Outlet, Link, useLocation } from 'react-router';
 
 const navItems = [
-  { path: "/", label: "Dashboard" },
-  { path: "/parameters", label: "Sensor data" },
-  { path: "/motion", label: "Motion tracker" },
+  { path: '/', label: 'Dashboard' },
+  { path: '/parameters', label: 'Sensor data' },
+  { path: '/motion', label: 'Motion tracker' },
 ];
 
 export function Layout() {
   const location = useLocation();
 
   const isActive = (path: string): boolean => {
-    if (path === "/") return location.pathname === "/";
+    if (path === '/') return location.pathname === '/';
     return location.pathname.startsWith(path);
   };
 
@@ -18,10 +18,7 @@ export function Layout() {
     <div className="flex min-h-screen flex-col bg-slate-100 text-slate-900">
       <nav className="sticky top-0 z-50 border-b border-slate-200 bg-white shadow-sm">
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4 sm:px-6">
-          <Link
-            to="/"
-            className="text-lg font-semibold text-blue-600 transition hover:text-blue-700"
-          >
+          <Link to="/" className="text-lg font-semibold text-blue-600 transition hover:text-blue-700">
             Environment monitor
           </Link>
           <ul className="flex gap-1">
@@ -31,8 +28,8 @@ export function Layout() {
                   to={item.path}
                   className={`rounded-lg px-3 py-2 text-sm font-medium transition ${
                     isActive(item.path)
-                      ? "bg-blue-50 text-blue-700"
-                      : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                      ? 'bg-blue-50 text-blue-700'
+                      : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                   }`}
                 >
                   {item.label}
