@@ -8,7 +8,7 @@ import {
   YAxis,
 } from "recharts";
 import { ChartContainer } from "./ChartContainer";
-import { CHART_TOOLTIP_STYLE, CHART_UI_COLORS } from "../types/constants";
+import { CHART_TOOLTIP_STYLE, CHART_UI_COLORS, type AirMetricKey } from "../types/constants";
 
 export type TrendPoint = {
   time: string;
@@ -24,8 +24,6 @@ export type SeriesTrendPoint = {
   bucketKey: string;
   value: number | null;
 };
-
-type AirMetricKey = keyof Pick<TrendPoint, "avgCo2" | "avgPm25" | "avgHumidity">;
 
 export const MetricTrendChart = memo(function MetricTrendChart({
   title,

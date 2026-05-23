@@ -42,6 +42,15 @@ export const METRIC_LABELS = {
   energy: "Energy",
 };
 
+export const AIR_METRIC_DATA_KEYS = {
+  co2: "avgCo2",
+  pm25: "avgPm25",
+  humidity: "avgHumidity",
+} as const;
+
+export type AirMetricKey =
+  (typeof AIR_METRIC_DATA_KEYS)[keyof typeof AIR_METRIC_DATA_KEYS];
+
 export const DASHBOARD_LIMITS = {
   sensorFetch: 100,
   sensorPoll: 25,
@@ -73,7 +82,7 @@ export const AIR_METRIC_CHARTS = [
   {
     suffix: "co2",
     title: `${METRIC_LABELS.co2} (ppm)`,
-    dataKey: "avgCo2",
+    dataKey: AIR_METRIC_DATA_KEYS.co2,
     seriesName: METRIC_LABELS.co2,
     stroke: CHART_COLORS.co2,
     unit: METRIC_UNITS.co2,
@@ -81,7 +90,7 @@ export const AIR_METRIC_CHARTS = [
   {
     suffix: "pm25",
     title: `${METRIC_LABELS.pm25} (µg/m³)`,
-    dataKey: "avgPm25",
+    dataKey: AIR_METRIC_DATA_KEYS.pm25,
     seriesName: METRIC_LABELS.pm25,
     stroke: CHART_COLORS.pm25,
     unit: METRIC_UNITS.pm25,
@@ -89,7 +98,7 @@ export const AIR_METRIC_CHARTS = [
   {
     suffix: "humidity",
     title: `${METRIC_LABELS.humidity} (%)`,
-    dataKey: "avgHumidity",
+    dataKey: AIR_METRIC_DATA_KEYS.humidity,
     seriesName: METRIC_LABELS.humidity,
     stroke: CHART_COLORS.humidity,
     unit: METRIC_UNITS.humidity,
