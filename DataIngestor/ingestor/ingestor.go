@@ -51,7 +51,7 @@ func (d *DataIngestor) fetchDataFromWeakApp(ctx context.Context) ([]byte, error)
 
 	for attempt := 0; ; attempt++ {
 		if attempt > 0 {
-			log.Printf("Retry attempt %d/ after %v", attempt, backoff)
+			log.Printf("Retry attempt %d after %v", attempt, backoff)
 
 			select {
 			case <-ctx.Done():
