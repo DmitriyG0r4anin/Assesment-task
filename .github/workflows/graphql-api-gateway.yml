@@ -14,8 +14,8 @@ on:
       - ".github/workflows/graphql-api-gateway.yml"
 
 jobs:
-  sonarqube:
-    name: SonarQube
+  analyze:
+    name: Build & Analyze
     runs-on: ubuntu-latest
     defaults:
       run:
