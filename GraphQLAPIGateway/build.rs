@@ -16,7 +16,6 @@ fn compile_with_protoc() -> Result<(), Box<dyn std::error::Error>> {
         return compile_protos();
     }
 
-    // Step 2: Check the local download cache BEFORE touching PATH.
     if let Ok(cache_dir) = get_cache_dir() {
         let protoc_exe = if cfg!(windows) {
             "protoc.exe"
@@ -31,7 +30,6 @@ fn compile_with_protoc() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    // Step 3: Check if protoc is available in PATH
     match find_protoc_in_path() {
         Ok(path) => {
             eprintln!("✓ Found protoc in PATH: {}", path.display());
@@ -42,12 +40,10 @@ fn compile_with_protoc() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    // Step 4: Download/extract protoc and cache it for future runs
     let protoc_path = setup_protoc()?;
     env::set_var("PROTOC", &protoc_path);
     eprintln!("✓ Using protoc at: {}", protoc_path.display());
 
-    // Step 5: Compile protos
     compile_protos()
 }
 

@@ -6,6 +6,8 @@ import "google/protobuf/timestamp.proto";
 
 package parameters;
 
+// ── Air Quality ──────────────────────────────────────────────────────────────
+
 service AirQualityService {
   rpc GetAirQualities (GetAirQualitiesRequest) returns (GetAirQualitiesResponse);
   rpc GetAirQuality   (GetAirQualityRequest)   returns (GetAirQualityResponse);
@@ -48,6 +50,8 @@ message GetAirQualityResponse {
   }
 }
 
+// ── Energy ───────────────────────────────────────────────────────────────────
+
 service EnergyService {
   rpc GetEnergies (GetEnergiesRequest) returns (GetEnergiesResponse);
   rpc GetEnergy   (GetEnergyRequest)   returns (GetEnergyResponse);
@@ -87,6 +91,8 @@ message GetEnergyResponse {
     ErrorResponse error = 2;
   }
 }
+
+// ── Motion ───────────────────────────────────────────────────────────────────
 
 service MotionService {
   rpc GetMotions (GetMotionsRequest) returns (GetMotionsResponse);
@@ -128,6 +134,8 @@ message GetMotionResponse {
   }
 }
 
+// ── Room ─────────────────────────────────────────────────────────────────────
+
 service RoomService {
   rpc GetRooms (GetRoomsRequest) returns (GetRoomsResponse);
   rpc GetRoom  (GetRoomRequest)  returns (GetRoomResponse);
@@ -164,6 +172,8 @@ message GetRoomResponse {
     ErrorResponse error = 2;
   }
 }
+
+// ── Common ───────────────────────────────────────────────────────────────────
 
 message ErrorResponse {
   int32  code    = 1;
